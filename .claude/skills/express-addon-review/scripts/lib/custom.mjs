@@ -35,6 +35,11 @@ export const CUSTOM_RULES = [
     id: "placeholder-selectable",
     severity: "warn",
     run: checkPlaceholder
+  },
+  {
+    id: "unpkg-cdn",
+    severity: "warn",
+    run: checkUnpkg
   }
 ];
 
@@ -121,10 +126,28 @@ function checkPlaceholder(ctx) {
 }
 
 function exportFiles(ctx) {
-  return ctx.files.filter((file) => /\b(gif|mp4|video)\b/i.test(file.text) && /\b(export|encode|render)\b/i.test(file.text));
+  return ctx.files.filter((file) => {
+    const code = file.text.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/.*$/gm, "$1");
+    const withoutKeyword = code.replace(/\bexport\s+(?:default\s+|async\s+)?(?:function|const|class|type|interface|enum|\{)/g, " ");
+    const produces = /\b(gif|mp4|video)\b/i.test(withoutKeyword);
+    const action = /\bencode(?!URI)\w*|\b(ffmpeg|createObjectURL|downloadBlob|MediaRecorder)\b/i.test(withoutKeyword);
+    return produces && action;
+  });
 }
 
 function lineOf(file, pattern) {
   const index = file.lines.findIndex((line) => pattern.test(line));
   return index >= 0 ? index + 1 : 1;
+}
+
+function checkUnpkg(ctx) {
+  for (const file of ctx.files) {
+    if (/\.json$/i.test(file.rel)) continue;
+    file.lines.forEach((line, index) => {
+      if (/^\s*\/\//.test(line) || /^\s*\*/.test(line)) return;
+      if (/unpkg\.com/i.test(line)) {
+        ctx.add(file.rel, index + 1, "Reviewers rejected add-ons that opened to a blank panel because a library was loaded from unpkg and that file was removed.", "Bundle the library with the add-on. Do not load it from unpkg.com.");
+      }
+    });
+  }
 }

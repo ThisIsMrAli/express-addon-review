@@ -61,6 +61,23 @@ const manifest = {
   entryPoints: [{ type: "panel", id: "panel1", main: "index.html" }]
 };
 
+test("a vendor bundle and a compiled sandbox are not source errors", () => {
+  const dir = addon({
+    "manifest.json": JSON.stringify({
+      ...manifest,
+      entryPoints: [{ type: "panel", id: "panel1", main: "index.html", documentSandbox: "code.js" }]
+    }),
+    "index.html": "<body><sp-theme>Adobe Express add-on</sp-theme></body>",
+    "sandbox/code.ts": "export function start(){ return true; }\n",
+    "public/ffmpeg-core.js": `var Module=${"x".repeat(3000)}; this.plugin = 1; fetch("https://example.com");\n`
+  });
+  const report = scanAddon(dir, { docs: docs() });
+  const ids = report.findings.map((finding) => finding.id);
+  assert.equal(ids.includes("sandbox-file"), false);
+  assert.equal(ids.includes("spelling-add-on"), false);
+  assert.equal(ids.includes("cancel-missing"), false);
+});
+
 test("a clean Express add-on passes when the fresh pages still state the rules", () => {
   const dir = addon({
     "manifest.json": JSON.stringify(manifest),
@@ -76,7 +93,7 @@ test("brand, theme, and cancel gaps are reported with an edit", () => {
   const dir = addon({
     "manifest.json": JSON.stringify({ ...manifest, requirements: { ...manifest.requirements, experimentalApis: true } }),
     "index.html": "<body><h1>Welcome to Express</h1><button onclick=\"alert('done')\">Go</button></body>",
-    "src/api.js": "export function run(){ return fetch('https://example.com/jobs'); }\n"
+    "src/api.js": "export async function encodeVideo(){ return fetch('https://example.com/encode'); }\n"
   });
   const report = scanAddon(dir, { docs: docs() });
   const ids = report.findings.map((item) => item.id);
@@ -119,6 +136,57 @@ test("review patterns still run when no Adobe page was fetched", () => {
     assert.ok(ids.includes(id), ids.join(","));
   }
   assert.ok(report.findings.every((item) => item.source.kind === "review-pattern" || item.source.kind === "tool"));
+});
+
+test("the brand guide rejects Adobe Express add-on, and unpkg is a review pattern", () => {
+  const dir = addon({
+    "manifest.json": JSON.stringify(manifest),
+    "index.html": "<body><p>Particle Pro Adobe Express Add-on</p><sp-theme>Adobe Express</sp-theme></body>",
+    "src/boot.js": "import x from 'https://unpkg.com/some-lib';\n"
+  });
+  const report = scanAddon(dir, { docs: docs() });
+  const order = report.findings.find((item) => item.id === "offering-name-order");
+  assert.ok(order, report.findings.map((item) => item.id).join(","));
+  assert.match(order.suggestion, /add-on for Adobe Express/);
+  assert.equal(report.findings.some((item) => item.id === "unpkg-cdn"), true);
+});
+
+test("class names, preview dialogs, and help text are not code errors", () => {
+  const dir = addon({
+    "manifest.json": JSON.stringify(manifest),
+    "index.html": "<body><p>Make a poster in Adobe Express</p><sp-theme></sp-theme></body>",
+    "src/boot.tsx": "if (preview) document.documentElement.classList.add(\"addon-preview\");\nconst card = <div className=\"addon plugin\" id=\"addon\" />;\n",
+    "src/preview.tsx": "function previewModal(){ return window.confirm(\"Continue\"); }\nconst preview = new URLSearchParams(location.search).get(\"preview\") === \"1\";\n",
+    "src/catalog.ts": "export function loadCatalog(){ return fetch(\"/catalog.json\"); }\n",
+    "src/Guide.tsx": "export function Guide(){ return \"download a transparent GIF or video\"; }\n",
+    "src/license.ts": "export function verify(){ return fetch(\"/license\"); }\nconst copy = \"animations as a still, GIF, or video\";\n"
+  });
+  const report = scanAddon(dir, { docs: docs() });
+  const ids = report.findings.map((item) => item.id);
+  for (const id of ["spelling-add-on", "modal-interrupt", "cancel-missing", "export-without-cancel", "export-without-download"]) {
+    assert.equal(ids.includes(id), false, ids.join(","));
+  }
+});
+
+test("a visible addon label is still a spelling error", () => {
+  const dir = addon({
+    "manifest.json": JSON.stringify(manifest),
+    "index.html": "<body><button>Save addon</button><sp-theme>Adobe Express</sp-theme></body>"
+  });
+  const report = scanAddon(dir, { docs: docs() });
+  assert.equal(report.findings.some((item) => item.id === "spelling-add-on"), true);
+});
+
+test("index.html keywords are not listing copy", () => {
+  const dir = addon({
+    "manifest.json": JSON.stringify(manifest),
+    "index.html": "<head><title>Get Started</title><meta name=\"keywords\" content=\"Adobe, Express, Add-On\"><meta name=\"description\" content=\"Adobe Express Add-on\"></head><body><p>Make a poster in Adobe Express</p><sp-theme></sp-theme></body>"
+  });
+  const report = scanAddon(dir, { docs: docs() });
+  const ids = report.findings.map((item) => item.id);
+  assert.equal(ids.includes("name-adobe-express"), false, ids.join(","));
+  assert.equal(ids.includes("spelling-add-on"), false, ids.join(","));
+  assert.equal(ids.includes("offering-name-order"), false, ids.join(","));
 });
 
 test("listing images are measured from the file header", () => {
@@ -169,6 +237,14 @@ test("the walk list names the dev-server document and the shell screens", () => 
   const document = report.views.find((view) => view.kind === "document");
   assert.equal(document.url, "https://localhost:5241/abc/index.html?preview=1");
   assert.ok(report.views.some((view) => view.kind === "screen" && view.name === "Studio"));
+  const routed = addon({
+    "manifest.json": JSON.stringify(manifest),
+    "index.html": "<body><div id=\"root\"></div></body>",
+    "src/App.tsx": "const routes = [{ path: \"/home\", element: <Home /> }, { path: \"/edit\", element: <Editor /> }];\n"
+  });
+  const routeReport = scanAddon(routed, { docs: docs() });
+  assert.ok(routeReport.views.some((view) => view.kind === "screen" && view.name === "Home"));
+  assert.ok(routeReport.views.some((view) => view.kind === "screen" && view.name === "Editor"));
 });
 
 test("a manifest in src/ is the add-on root", () => {
@@ -187,6 +263,18 @@ test("a manifest in src/ is the add-on root", () => {
   assert.equal(ids.includes("third-party-ads"), false);
   assert.equal(ids.includes("export-without-cancel"), false);
   assert.equal(report.addonDir, path.join(dir, "src"));
+  assert.equal(report.access.needsCredential, false);
+});
+
+test("a license key in source asks for a test credential", () => {
+  const dir = addon({
+    "manifest.json": JSON.stringify(manifest),
+    "index.html": "<body><sp-theme>Adobe Express</sp-theme></body>",
+    "src/license.ts": "export function verify(license_key){ return fetch('https://api.gumroad.com/v2/licenses/verify'); }\n"
+  });
+  const report = scanAddon(dir, { docs: docs() });
+  assert.equal(report.access.needsCredential, true);
+  assert.equal(report.access.file, "src/license.ts");
 });
 
 test("the markdown report separates Adobe findings from review patterns", () => {

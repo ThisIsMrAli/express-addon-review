@@ -2,14 +2,10 @@ export const REPO = "AdobeDocs/express-add-ons-docs";
 export const BRANCH = "main";
 
 export const TREE_PREFIXES = [
-  "src/pages/guides/build/distribute/guidelines/",
-  "src/pages/guides/build/design/ux-guidelines/",
-  "src/pages/guides/build/distribute/review-process/"
+  "src/pages/guides/"
 ];
 
 export const TREE_FILES = [
-  "src/pages/guides/build/distribute/rejections.md",
-  "src/pages/guides/build/distribute/public-dist.md",
   "static/pdf/Adobe_Express_Developer_Program_brand_guide_100625.pdf"
 ];
 

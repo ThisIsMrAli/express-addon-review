@@ -1,6 +1,6 @@
 # Publisher form
 
-These fields are rules. They were taken from the in-app form sections and from the public-distribution page. Check a `listing/` file when the repo has one. Ask the user for a value that is not in the repo. Do not wait for those answers before the browser walk, and do not invent them.
+These fields are the Listing phase. They are not code findings. `index.html` keywords, the meta description, and the document title do not fill this form. Check a `listing/` file when the repo has one. Ask once whether to write the listing. A yes means one section, then wait, and the screenshots in [listing-shots.md](listing-shots.md). Do not invent a value. `listing-guide.md` is an older walkthrough. If it disagrees with the fresh `public-dist.md`, use `public-dist.md`.
 
 The in-app form is one page with these sections:
 
@@ -30,7 +30,7 @@ A `*` field is required before submit. A draft can be saved without it.
    - Keywords, 100, comma-separated
    - Trader information is required to sell in the EU. The fields are on the [listing page](https://developer.adobe.com/express/add-ons/docs/guides/build/distribute/guidelines/general/listing)
 3. Screenshots (`screenshot-details`):
-   - Ask if they want files generated that can be uploaded as-is. If yes, follow [listing-shots.md](listing-shots.md). If no, do not generate them
+   - A yes to the listing question includes these files. Follow this page. A no means do not generate them
    - One screenshot is required. Up to five total
    - Each screenshot is 1360×800 JPEG or PNG
    - Icon is 144×144 JPEG or PNG. Adobe resizes that upload to 36 and 64. Do not ask the user for separate 36 and 64 files. Do not make the icon unless they ask

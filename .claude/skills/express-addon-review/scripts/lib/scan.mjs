@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ADOBE_RULES, adobeActive } from "./adobe.mjs";
 import { CUSTOM_RULES } from "./custom.mjs";
+import { detectDesign } from "./design.mjs";
 import { HUMAN_CHECKS } from "./human.mjs";
 import { imageSize } from "./images.mjs";
 import { loadLive } from "./live.mjs";
@@ -66,7 +67,17 @@ export function scanAddon(root, options = {}) {
       message: "No listing/ or assets/ folder was found. A public listing still needs a 144×144 icon, a 1360×800 screenshot, and release notes. This is not a failure."
     });
   }
-  return { ...finish(findings, skipped, true, humanChecks, collectViews(files, manifest)), addonDir: dir };
+  return {
+    ...finish(findings, skipped, true, humanChecks, collectViews(files, manifest)),
+    addonDir: dir,
+    design: detectDesign(given, dir, files),
+    access: detectAccess(files)
+  };
+}
+
+function detectAccess(files) {
+  const file = files.find((entry) => !/\.json$/i.test(entry.rel) && /license[_-]?key|gumroad|purchaseCode|\bsignIn\b|sign-in|\blogIn\b|I have a key|Get a license/i.test(entry.text));
+  return { needsCredential: Boolean(file), file: file?.rel || "" };
 }
 
 function resolveAddonDir(given) {
@@ -134,6 +145,18 @@ function collectViews(files, manifest) {
       views.push({ kind: "screen", name, file: shell.rel, line: index + 1 });
     });
   }
+  const routed = new Set();
+  for (const file of files) {
+    if (!/\.(jsx|tsx)$/i.test(file.rel)) continue;
+    file.lines.forEach((line, index) => {
+      for (const match of line.matchAll(/element:\s*<([A-Z][A-Za-z0-9]+)/g)) {
+        const name = match[1];
+        if (name === "Navigate" || routed.has(name)) continue;
+        routed.add(name);
+        views.push({ kind: "screen", name, file: file.rel, line: index + 1 });
+      }
+    });
+  }
   let controls = 0;
   for (const file of files) {
     if (!/\.(html?|jsx|tsx)$/i.test(file.rel)) continue;
@@ -178,6 +201,13 @@ function pickShell(files) {
   return score > 0 ? best : null;
 }
 
+function generatedSource(rel, text) {
+  if (/ffmpeg|h264-mp4-encoder/i.test(rel)) return true;
+  const first = text.slice(0, 8000);
+  const line = first.split("\n", 1)[0];
+  return line.length > 2000;
+}
+
 function walk(dir, root, files, images) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.isSymbolicLink() || SKIP.has(entry.name)) continue;
@@ -190,6 +220,7 @@ function walk(dir, root, files, images) {
     const ext = path.extname(entry.name).toLowerCase();
     if (TEXT_EXT.has(ext)) {
       const text = fs.readFileSync(full, "utf8");
+      if (generatedSource(rel, text)) continue;
       files.push({ rel, text, lines: text.split("\n") });
     } else if (IMAGE_EXT.has(ext)) {
       const buf = fs.readFileSync(full);

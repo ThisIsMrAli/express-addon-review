@@ -4,24 +4,30 @@ Do not copy Adobe's sentences into the skill. `scripts/lib/sources.mjs` is the f
 
 Repository: https://github.com/AdobeDocs/express-add-ons-docs
 
-Markdown prefixes:
+The published guide index is https://developer.adobe.com/express/add-ons/docs/guides/. The sidebar on that page is the list. Every guide URL in that sidebar has a markdown file under `src/pages/guides/`, and the fetch downloads that whole folder.
 
-- `src/pages/guides/build/distribute/guidelines/`
-- `src/pages/guides/build/design/ux-guidelines/`
-- `src/pages/guides/build/distribute/review-process/`
+Checked against the live sidebar on November 6, 2026: 95 guide URLs, and every one is in the repository. These published pages are not in the sidebar, and they still return a page, so they are downloaded with the rest of the folder:
 
-Single files:
+- [Fonts](https://developer.adobe.com/express/add-ons/docs/guides/build/design/fonts)
+- [Mobile UX](https://developer.adobe.com/express/add-ons/docs/guides/build/design/ux-guidelines/mobile-ux)
+- [Planning](https://developer.adobe.com/express/add-ons/docs/guides/build/distribute/guidelines/general/planning)
+- [Listing guide](https://developer.adobe.com/express/add-ons/docs/guides/build/distribute/listing-guide)
+- [Submission checklist](https://developer.adobe.com/express/add-ons/docs/guides/build/distribute/review-process/submission-checklist)
+- [Markdown parser tutorial](https://developer.adobe.com/express/add-ons/docs/guides/learn/how-to/tutorials/markdown-parser-text-api)
 
-- `src/pages/guides/build/distribute/rejections.md`
-- `src/pages/guides/build/distribute/public-dist.md`
-- `static/pdf/Adobe_Express_Developer_Program_brand_guide_100625.pdf`
+`getting-started/local-development` has no published index page. Its child pages, including known issues, are in the sidebar and are downloaded.
 
-Pages outside that tree:
+The SDK References section in the same header is the class reference. It is not a guide page. The manifest reference is still fetched, because the scanner cites it:
 
 - https://developer.adobe.com/express/add-ons/docs/references/manifest/
-- https://developer.adobe.com/express/add-ons/docs/guides/learn/how-to/premium-content
 - https://blog.developer.adobe.com/en/publish/2026/05/how-to-get-your-adobe-express-add-on-approved-avoiding-the-most-common-rejections
 
+The brand PDF is `static/pdf/Adobe_Express_Developer_Program_brand_guide_100625.pdf`.
+
 The premium-content page is about Adobe Express document content. It is not the add-on's own paid tier. The monetization page covers that.
+
+`listing-guide.md` is older than `public-dist.md`. When they disagree, use `public-dist.md`.
+
+`best-practices.md` still says only the light theme exists. `theme-locale.md` is the theme rule.
 
 Published pages are rendered from the markdown. Prefer the downloaded markdown when they disagree.

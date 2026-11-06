@@ -1,5 +1,3 @@
-import { HUMAN_CHECKS } from "./human.mjs";
-
 export function renderMarkdown(report) {
   const lines = [
     "# Express add-on review",
@@ -11,18 +9,6 @@ export function renderMarkdown(report) {
   section(lines, "Errors", report.findings.filter((finding) => finding.severity === "error" && finding.source?.kind !== "review-pattern"));
   section(lines, "Warnings", report.findings.filter((finding) => finding.severity === "warn" && finding.source?.kind !== "review-pattern"));
   section(lines, "Review patterns", report.findings.filter((finding) => finding.source?.kind === "review-pattern"));
-  lines.push("## Skipped Adobe checks", "");
-  if (!report.skipped?.length) lines.push("None. Every Adobe check found its sentence in the fresh download.", "");
-  else {
-    for (const skip of report.skipped) {
-      lines.push(`- \`${skip.id}\` ${skip.url}`, `  ${skip.reason}`, "");
-    }
-  }
-  lines.push("## Still needs a person", "");
-  for (const check of report.humanChecks || HUMAN_CHECKS) {
-    lines.push(`- ${check.message}`);
-  }
-  lines.push("");
   if (report.views?.length) {
     lines.push("## Views to open", "");
     for (const view of report.views) lines.push(`- ${view.kind}: ${view.name}${view.url ? ` ${view.url}` : ""} (${view.file}:${view.line})`);

@@ -2,7 +2,7 @@
 
 An agent skill that checks an Adobe Express add-on folder against the current marketplace rules. Each miss includes an edit. Adobe's sentences stay on Adobe's pages: the refresh command downloads the docs repository, and a check is skipped when that download no longer contains the sentence.
 
-It does not replace the marketplace review, and it does not open Adobe Express. The scanner reads the source and writes the panel URL plus the screen list. The skill then opens that URL at 320px and walks each screen. Listing fields that are not in the repo are asked, not invented.
+It does not replace the marketplace review, and it does not open Adobe Express. The scanner reads the source, then the skill opens the panel at 320px. The next step is a selection box: the recommended choice is first, and the other choices sit beside it. `index.html` keywords are not the listing.
 
 Invoke it in Cursor with `/express-addon-review`.
 

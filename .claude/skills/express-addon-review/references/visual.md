@@ -1,5 +1,7 @@
 # Simulate the panel
 
+Open the panel as part of the review. Do not ask first.
+
 Do not open `express.adobe.com`. Do not sign in. Adobe draws the title bar. The page you review is the add-on document, at the width Express gives it: **320px** wide and full height. The body padding on that page is **24px**, and the gap between elements is **16px**. Those numbers are in the fresh `visual-elements.md`. If that file no longer says them, do not keep enforcing them.
 
 `review.mjs` writes `views.json`. It does not launch a browser. You do.
@@ -67,11 +69,11 @@ Record a mistake only when you can see it on that screen:
 - Success or error text cannot be read in light or in dark.
 - Spelling is "addon" or "plugin" where the UI page requires "add-on", or "Express" is used without "Adobe" in front of it.
 
-Keep the 320px captures. They are the panel images inside a listing screenshot. They are not the upload. Ask before making 1360×800 files, and follow [listing-shots.md](listing-shots.md) only if the user says yes.
+Keep the 320px captures. They are the panel images inside a listing screenshot. They are not the upload. Do not ask about the 1360×800 files here. That question is the Listing phase, after the fixes.
 
 ## 5. Fix, then look again
 
-Do not edit the add-on until the user asks you to fix the review.
+Each thing you saw is its own question: "Fix this?" Wait. Do not edit until they say yes to that one.
 
 When they do:
 

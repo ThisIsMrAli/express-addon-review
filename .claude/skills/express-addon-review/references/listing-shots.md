@@ -1,10 +1,10 @@
 # Marketplace screenshots
 
-Ask this, then wait. Do not start until the user says yes:
+The listing question asks this. Do not ask it during Review or Fix, and do not start until the answer is yes:
 
-> Do you want marketplace screenshots you can upload as-is? I will make 1360×800 PNGs from the real panel. I will not paint a banner, and I will not make the 144 icon unless you ask.
+> Write the marketplace listing? I will draft the name, summary, description, and keywords from the manifest, the package description, and the visible panel, and I will make the 1360×800 screenshots. I will not copy index.html keywords.
 
-If they say no, stop. Do not create `thumbnails/`.
+If they say no, do not create `thumbnails/`.
 
 These files fill `screenshot-details` on the public listing. The rule is the fresh [public distribution](https://developer.adobe.com/express/add-ons/docs/guides/build/distribute/public-dist) page: one screenshot required, five maximum, each exactly **1360×800**, JPEG or PNG. This procedure writes PNG. The **144×144** icon is a different upload. Adobe resizes it. Do not make 36 or 64 copies.
 
@@ -18,8 +18,9 @@ Read, and quote:
 
 - `manifest.json` `name`
 - `package.json` `description`
-- `index.html` title and meta description
 - Visible UI after the panel is open: placeholders, button labels, headings, guide titles, guide sentences, material names, pack names, export kinds
+
+Do not quote `index.html` keywords, the meta description, or the document title. Those lines are the page template, not the listing.
 
 Use this shape. Every piece must be a phrase that already appears in those sources. You may change case. You may not add a word.
 

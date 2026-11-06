@@ -1,7 +1,7 @@
 export const HUMAN_CHECKS = [
   {
     id: "running-panel",
-    message: "Open the document URL from the walk list at 320px wide, in light and dark. Do not open Adobe Express."
+    message: "The panel walk is a later question, after the code findings. Do not open it in the first reply."
   },
   {
     id: "license-state",
@@ -21,7 +21,7 @@ export const HUMAN_CHECKS = [
   },
   {
     id: "credentials",
-    message: "If the add-on needs a login or a license key, put test credentials in the review notes."
+    message: "If the add-on needs a login or a license key, put test credentials in the review notes. An empty license key needs a validation message, and the user must be able to deactivate or replace the key."
   },
   {
     id: "browsers",
@@ -37,6 +37,6 @@ export const HUMAN_CHECKS = [
   },
   {
     id: "listing-form",
-    message: "The publisher form is not in the source. Ask the listing, screenshot, version, AI, monetization, publisher, and submit questions before calling the listing ready."
+    message: "The publisher form is the last question. Do not draft it, and do not read it from index.html, until they say yes."
   }
 ];

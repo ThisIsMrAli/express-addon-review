@@ -43,7 +43,8 @@ export const ADOBE_RULES = [
   rule("logout-missing", "warn", AUTH, "Users must be able to logout", checkLogout),
   rule("popup-blocked", "warn", AUTH, "POPUP_BLOCKED", checkPopup),
   rule("input-validation", "warn", USABILITY, "validation for user inputs", checkValidation),
-  rule("adobe-logo-file", "error", BRAND_TEXT, '"Designed for Adobe Express" badge', checkLogoFile)
+  rule("adobe-logo-file", "error", BRAND_TEXT, '"Designed for Adobe Express" badge', checkLogoFile),
+  rule("offering-name-order", "error", BRAND_TEXT, "NOT this: [Your offering name] Adobe Express add-on", checkOfferingName)
 ];
 
 function rule(id, severity, sourceKey, evidence, run) {
@@ -110,30 +111,53 @@ function checkEntryFiles(ctx) {
 
 function checkSandbox(ctx) {
   for (const entry of ctx.manifest.entryPoints || []) {
-    if (entry.documentSandbox && !ctx.exists(entry.documentSandbox)) {
-      ctx.add("manifest.json", 1, `documentSandbox file ${entry.documentSandbox} is missing.`, "Add the sandbox file or remove the key.");
-    }
+    if (!entry.documentSandbox) continue;
+    if (ctx.exists(entry.documentSandbox)) continue;
+    const stem = String(entry.documentSandbox).replace(/\.[^.]+$/, "");
+    const source = ["js", "ts", "tsx"].some((ext) => ctx.exists(`sandbox/${stem}.${ext}`) || ctx.exists(`${stem}.${ext}`));
+    if (source) continue;
+    ctx.add("manifest.json", 1, `documentSandbox file ${entry.documentSandbox} is missing.`, "Add the sandbox file or remove the key. A CLI project keeps the source in sandbox/ and the manifest names the built file.");
   }
 }
 
 function checkProductName(ctx) {
   eachCopyLine(ctx, (file, line, index) => {
     if (/(?<!Adobe )\bExpress\b/.test(line) && !/["'`]Express["'`]/.test(line)) {
-      ctx.add(file.rel, index + 1, 'The fresh UI page says to use the full name "Adobe Express".', line.replace(/(?<!Adobe )\bExpress\b/g, "Adobe Express"));
+      ctx.add(file.rel, index + 1, 'The fresh UI page says to use the full name "Adobe Express".', correctedCopy(line));
     }
   });
 }
 
 function checkSpelling(ctx) {
   eachCopyLine(ctx, (file, line, index) => {
-    if (/\baddon\b/i.test(line) || /\badd on\b/i.test(line) || /\bplugin\b/i.test(line)) {
-      const suggestion = line
-        .replace(/\baddon\b/ig, "add-on")
-        .replace(/\badd on\b/ig, "add-on")
-        .replace(/\bplugin\b/ig, "add-on");
-      ctx.add(file.rel, index + 1, 'The fresh UI page spells it "add-on", not "addon", "add on", or "plugin".', suggestion);
-    }
+    const copy = visibleCopy(line);
+    if (!misspelledAddOn(copy)) return;
+    ctx.add(file.rel, index + 1, 'The fresh UI page spells it "add-on", not "addon", "add on", "Add-On", or "plugin".', correctedCopy(copy));
   });
+}
+
+function visibleCopy(line) {
+  return line
+    .replace(/\bclassName\s*=\s*(?:\{[^}]*\}|"[^"]*"|'[^']*'|`[^`]*`)/g, " ")
+    .replace(/\bclassList\.(?:add|remove|toggle|contains)\([^)]*\)/g, " ")
+    .replace(/\bclass\s*=\s*["'][^"']*["']/g, " ")
+    .replace(/\bid\s*=\s*["'][^"']*["']/g, " ");
+}
+
+function misspelledAddOn(line) {
+  return /(?<![\w-])addon(?![\w-])/i.test(line)
+    || /(?<![\w-])add on(?![\w-])/i.test(line)
+    || /(?<![\w-])plugin(?![\w-])/i.test(line)
+    || /(?<![\w-])Add-On(?![\w-])/.test(line);
+}
+
+function correctedCopy(line) {
+  return line
+    .replace(/(?<!Adobe )\bExpress\b/g, "Adobe Express")
+    .replace(/(?<![\w-])addon(?![\w-])/ig, "add-on")
+    .replace(/(?<![\w-])add on(?![\w-])/ig, "add-on")
+    .replace(/(?<![\w-])plugin(?![\w-])/ig, "add-on")
+    .replace(/(?<![\w-])Add-On(?![\w-])/g, "add-on");
 }
 
 function checkStock(ctx) {
@@ -187,8 +211,11 @@ function checkPro(ctx) {
 
 function checkDialog(ctx) {
   for (const file of ctx.files) {
-    const hit = lineMatch(file, /\balert\s*\(|\bconfirm\s*\(/);
-    if (hit) ctx.add(file.rel, (hit?.line ?? 1), "The fresh UI page says to keep ordinary status in the panel instead of a dialog box.", "Replace alert or confirm with an in-panel message.");
+    const hit = lineMatch(file, /\b(?:window\.)?(?:alert|confirm)\s*\(/);
+    if (!hit) continue;
+    const around = file.lines.slice(Math.max(0, hit.line - 30), hit.line).join("\n");
+    if (/function\s+preview|previewModal|get\(\s*["']preview["']\s*\)/.test(around)) continue;
+    ctx.add(file.rel, hit.line, "The fresh UI page says to keep ordinary status in the panel instead of a dialog box.", "Replace alert or confirm with an in-panel message.");
   }
 }
 
@@ -202,11 +229,21 @@ function checkTheme(ctx) {
 
 function checkCancel(ctx) {
   for (const file of ctx.files) {
-    if (/\bfetch\s*\(/.test(file.text) && !/AbortController|signal\s*:/.test(file.text)) {
+    if (!longOperation(file.text)) continue;
+    if (/\bfetch\s*\(/.test(file.text) && !/AbortController|signal\s*:|\bcancel\b|\babort\b/i.test(file.text)) {
       const hit = lineMatch(file, /\bfetch\s*\(/);
       ctx.add(file.rel, (hit?.line ?? 1), "The fresh features page says a long blocking operation should let the user cancel it.", "Keep a Cancel control and pass an AbortSignal to fetch.");
     }
   }
+}
+
+function longOperation(text) {
+  const code = stripComments(text);
+  return /\bencode(?!URI)\w*|\b(rendition|ffmpeg|MediaRecorder)\b/i.test(code);
+}
+
+function stripComments(text) {
+  return text.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/.*$/gm, "$1");
 }
 
 function checkRendition(ctx) {
@@ -347,12 +384,23 @@ function eachCopyLine(ctx, visit) {
 
 function skipCopyLine(line) {
   const trimmed = line.trim();
-  return trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*") || trimmed.startsWith("<!--");
+  if (trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*") || trimmed.startsWith("<!--")) return true;
+  if (/<title\b/i.test(line)) return true;
+  if (/<meta\b/i.test(line) && /\bname=["'](?:keywords|description)["']/i.test(line)) return true;
+  return false;
 }
 
 function lineMatch(file, pattern) {
   const index = file.lines.findIndex((line) => pattern.test(line));
   return index >= 0 ? { line: index + 1 } : null;
+}
+
+function checkOfferingName(ctx) {
+  eachCopyLine(ctx, (file, line, index) => {
+    if (/(?<!for )Adobe Express add-on/i.test(line)) {
+      ctx.add(file.rel, index + 1, 'The fresh brand guide says "[name] add-on for Adobe Express", not "[name] Adobe Express add-on".', line.replace(/Adobe Express add-on/ig, "add-on for Adobe Express"));
+    }
+  });
 }
 
 function checkLogoFile(ctx) {
