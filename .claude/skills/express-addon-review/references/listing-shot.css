@@ -1,5 +1,7 @@
-/* 1920×1280. The fit script center-crops about 76px off the top and bottom.
-   Keep type and cards inside .safe. Type stays on the left. Panels stay on the right. */
+/* express-addon-review listing-shot.css v3
+   Locked look: type LEFT, panels RIGHT. Soft wash + dots.
+   1920×1280. The fit script center-crops about 76px off the top and bottom.
+   Keep type and cards inside .safe. Do not replace this file with a freelanced stylesheet. */
 html, body { margin: 0; width: 1920px; height: 1280px; overflow: hidden; }
 body {
   font-family: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -70,27 +72,30 @@ h1 {
   font-size: 18px;
   font-weight: 620;
 }
+/* A panel capture is 640×1600, so a card is 2.5 times as tall as it is wide plus 20px of frame.
+   Keep the tallest card under the 1088px stage. The panels are the picture, so they are big. */
 .stage { position: relative; flex: 1; height: 100%; }
 .card {
   position: absolute;
   padding: 10px;
-  border-radius: 28px;
+  border-radius: 30px;
   background: #fff;
-  box-shadow: 0 28px 70px rgba(40, 30, 18, .16);
+  box-shadow: 0 34px 80px rgba(40, 30, 18, .18);
 }
-.card img { display: block; width: 250px; height: auto; border-radius: 18px; background: #fff; }
-body[data-shot="cover"] .card.back { top: 8px; right: 168px; transform: perspective(1400px) rotateY(-8deg) rotateZ(-4deg); }
-body[data-shot="cover"] .card.front { top: 168px; right: 8px; transform: perspective(1400px) rotateY(-6deg) rotateZ(2.5deg); }
+.card img { display: block; width: 380px; height: auto; border-radius: 22px; background: #fff; }
+body[data-shot="cover"] .card.back { top: 4px; left: 200px; transform: perspective(1600px) rotateY(-7deg) rotateZ(-3deg); }
+body[data-shot="cover"] .card.front { top: 100px; left: 560px; transform: perspective(1600px) rotateY(-5deg) rotateZ(2.5deg); }
 body[data-shot="cover"] .card.mid, body[data-shot="cover"] .card.third { display: none; }
-body[data-shot="feature"] .card.front { top: 24px; right: 24px; transform: perspective(1400px) rotateY(-7deg) rotateZ(-1.5deg); }
-body[data-shot="feature"] .card.front img { width: 300px; }
+body[data-shot="feature"] .card.front { top: 24px; left: 340px; transform: perspective(1600px) rotateY(-7deg) rotateZ(-1.5deg); }
+body[data-shot="feature"] .card.front img { width: 400px; }
 body[data-shot="feature"] .card.back,
 body[data-shot="feature"] .card.mid,
 body[data-shot="feature"] .card.third { display: none; }
-body[data-shot="path"] .card img { width: 210px; }
-body[data-shot="path"] .card.front { top: 150px; left: 0; transform: rotate(-3deg); }
-body[data-shot="path"] .card.mid { top: 86px; left: 230px; transform: rotate(1deg); }
-body[data-shot="path"] .card.third { top: 176px; left: 460px; transform: rotate(3deg); }
+body[data-shot="path"] .card img { width: 360px; }
+body[data-shot="path"] .card.front { top: 120px; left: 0; transform: rotate(-3deg); }
+body[data-shot="path"] .card.mid { top: 40px; left: 410px; transform: rotate(1deg); }
+body[data-shot="path"] .card.third { top: 130px; left: 810px; transform: rotate(3deg); }
 body[data-shot="path"] .card.back { display: none; }
 .float { position: absolute; width: 150px; height: auto; pointer-events: none; filter: drop-shadow(0 16px 18px rgba(15, 23, 42, .16)); }
-.float-star { left: 620px; top: 118px; }
+.float-star { left: 640px; top: 150px; }
+body[data-shot="path"] .float-star { left: 500px; top: 100px; }

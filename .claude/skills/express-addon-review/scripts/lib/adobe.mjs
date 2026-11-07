@@ -1,5 +1,7 @@
 import path from "node:path";
+import { PACKAGE_LIMIT } from "./package.mjs";
 import { BRAND_TEXT, publishedUrl } from "./sources.mjs";
+import { attrValue, COPY_EXT, hasAttr, hasVisibleText, innerOf, MARKUP_EXT, openTags, OWN_VALIDATION } from "./source.mjs";
 
 const UI = "src/pages/guides/build/distribute/guidelines/general/user-interface.md";
 const MONETIZATION = "src/pages/guides/build/distribute/guidelines/monetization.md";
@@ -44,7 +46,11 @@ export const ADOBE_RULES = [
   rule("popup-blocked", "warn", AUTH, "POPUP_BLOCKED", checkPopup),
   rule("input-validation", "warn", USABILITY, "validation for user inputs", checkValidation),
   rule("adobe-logo-file", "error", BRAND_TEXT, '"Designed for Adobe Express" badge', checkLogoFile),
-  rule("offering-name-order", "error", BRAND_TEXT, "NOT this: [Your offering name] Adobe Express add-on", checkOfferingName)
+  rule("offering-name-order", "error", BRAND_TEXT, "NOT this: [Your offering name] Adobe Express add-on", checkOfferingName),
+  rule("package-root", "error", PUBLIC, "MANIFEST_NOT_FOUND_ERROR", checkPackageRoot),
+  rule("package-size", "error", PUBLIC, "must not exceed 50 MB", checkPackageSize),
+  rule("package-hidden", "error", PUBLIC, "Hidden files should not be present", checkPackageHidden),
+  rule("package-entry", "error", PUBLIC, "production-ready built content", checkPackageEntry)
 ];
 
 function rule(id, severity, sourceKey, evidence, run) {
@@ -170,9 +176,8 @@ function checkStock(ctx) {
 }
 
 function checkCrown(ctx) {
-  for (const file of ctx.files.filter(sourceFile)) {
-    file.lines.forEach((line, index) => {
-      if (!visibleLine(line)) return;
+  for (const file of codeFiles(ctx)) {
+    file.codeLines.forEach((line, index) => {
       if (/\bnot\b[^.]{0,80}\bcrown\b/i.test(line)) return;
       if (/\bcrown\b/i.test(line)) {
         ctx.add(file.rel, index + 1, "The fresh monetization page says a crown icon is reserved for Adobe Express Premium and can cause a rejection.", "Remove the crown. Use the plus badge for a purchase and the paid checkmark only while a single item is unlocked.");
@@ -182,9 +187,8 @@ function checkCrown(ctx) {
 }
 
 function checkLock(ctx) {
-  for (const file of ctx.files.filter(sourceFile)) {
-    file.lines.forEach((line, index) => {
-      if (!visibleLine(line)) return;
+  for (const file of codeFiles(ctx)) {
+    file.codeLines.forEach((line, index) => {
       if (/(^|[^a-zA-Z])(lock[- ]icon|lockIcon|padlock)/i.test(line)) {
         ctx.add(file.rel, index + 1, "The fresh monetization page says not to use a lock icon, because it conflicts with lock layer.", "Replace the lock with the plus badge.");
       }
@@ -202,20 +206,31 @@ function checkPremium(ctx) {
 
 function checkPro(ctx) {
   eachCopyLine(ctx, (file, line, index) => {
-    if (/Pro Plan/.test(line)) return;
-    if (/\bPro\b/.test(line)) {
+    if (proUse(line)) {
       ctx.add(file.rel, index + 1, 'The fresh monetization page says to avoid "pro" unless the words are "Pro Plan". The same page also shows "Upgrade to Pro".', 'If this is a price, write "Pro Plan" or "Upgrade to Pro" so it is not a product grade.');
     }
   });
 }
 
+/** "Pro" as a plan or grade. A name such as "Source Sans Pro" is a font, not a plan. */
+function proUse(line) {
+  for (const match of line.matchAll(/\bPro\b/g)) {
+    const before = line.slice(0, match.index);
+    if (/^\s+Plan\b/.test(line.slice(match.index + 3))) continue;
+    if (/\b(?:Go|Upgrade to|Get|Unlock|Buy|Try|Become|Switch to)\s+$/i.test(before)) return true;
+    if (/\b[A-Z][A-Za-z0-9]*\s+$/.test(before)) continue;
+    return true;
+  }
+  return false;
+}
+
 function checkDialog(ctx) {
-  for (const file of ctx.files) {
-    const hit = lineMatch(file, /\b(?:window\.)?(?:alert|confirm)\s*\(/);
-    if (!hit) continue;
-    const around = file.lines.slice(Math.max(0, hit.line - 30), hit.line).join("\n");
+  for (const file of codeFiles(ctx)) {
+    const index = file.codeLines.findIndex((line) => /(?<![.\w])(?:window\.)?(?:alert|confirm)\s*\(/.test(line));
+    if (index < 0) continue;
+    const around = file.codeLines.slice(Math.max(0, index - 30), index + 1).join("\n");
     if (/function\s+preview|previewModal|get\(\s*["']preview["']\s*\)/.test(around)) continue;
-    ctx.add(file.rel, hit.line, "The fresh UI page says to keep ordinary status in the panel instead of a dialog box.", "Replace alert or confirm with an in-panel message.");
+    ctx.add(file.rel, index + 1, "The fresh UI page says to keep ordinary status in the panel instead of a dialog box.", "Replace alert or confirm with an in-panel message.");
   }
 }
 
@@ -227,80 +242,72 @@ function checkTheme(ctx) {
   }
 }
 
+const CANCEL = /AbortController|signal\s*:|\bcancel\b|\babort\b/i;
+
 function checkCancel(ctx) {
-  for (const file of ctx.files) {
-    if (!longOperation(file.text)) continue;
-    if (/\bfetch\s*\(/.test(file.text) && !/AbortController|signal\s*:|\bcancel\b|\babort\b/i.test(file.text)) {
-      const hit = lineMatch(file, /\bfetch\s*\(/);
-      ctx.add(file.rel, (hit?.line ?? 1), "The fresh features page says a long blocking operation should let the user cancel it.", "Keep a Cancel control and pass an AbortSignal to fetch.");
-    }
+  if (projectHas(ctx, CANCEL)) return;
+  for (const file of codeFiles(ctx)) {
+    if (!longOperation(file.code)) continue;
+    const index = file.codeLines.findIndex((line) => /\bfetch\s*\(/.test(line));
+    if (index < 0) continue;
+    ctx.add(file.rel, index + 1, "The fresh features page says a long blocking operation should let the user cancel it.", "Keep a Cancel control and pass an AbortSignal to fetch.");
+    return;
   }
 }
 
-function longOperation(text) {
-  const code = stripComments(text);
+function longOperation(code) {
   return /\bencode(?!URI)\w*|\b(rendition|ffmpeg|MediaRecorder)\b/i.test(code);
 }
 
-function stripComments(text) {
-  return text.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/.*$/gm, "$1");
-}
-
 function checkRendition(ctx) {
-  for (const file of ctx.files) {
-    if (/createRendition|rendition/i.test(file.text) && !/progress|spinner|loading/i.test(file.text)) {
-      const hit = lineMatch(file, /createRendition|rendition/i);
-      ctx.add(file.rel, (hit?.line ?? 1), "The fresh features page says a rendition must show progress.", "Show a progress indicator while the rendition is created.");
-    }
-  }
+  const hit = firstHit(ctx, /\bcreateRenditions?\b/);
+  if (!hit || projectHas(ctx, /progress|spinner|loading/i)) return;
+  ctx.add(hit.file, hit.line, "The fresh features page says a rendition must show progress.", "Show a progress indicator while the rendition is created.");
 }
 
 function checkAds(ctx) {
-  for (const file of ctx.files.filter(sourceFile)) {
-    const hit = lineMatch(file, /(^|[^a-zA-Z])(googlesyndication|doubleclick|adsbygoogle)\b|facebook\.com\/tr/i);
-    if (hit && visibleLine(file.lines[hit.line - 1] || "")) ctx.add(file.rel, hit.line, "The fresh monetization page forbids third-party advertising in every add-on.", "Remove the ad script.");
-  }
+  const hit = firstHit(ctx, /(^|[^a-zA-Z])(googlesyndication|doubleclick|adsbygoogle)\b|facebook\.com\/tr/i);
+  if (hit) ctx.add(hit.file, hit.line, "The fresh monetization page forbids third-party advertising in every add-on.", "Remove the ad script.");
 }
 
 function checkGenAi(ctx) {
-  for (const file of ctx.files.filter(sourceFile)) {
-    if (/openai|firefly|stability\.ai|images\/generations|generative/i.test(file.text) && !/inaccurate/i.test(file.text)) {
-      const hit = lineMatch(file, /openai|firefly|stability\.ai|images\/generations|generative/i);
-      if (hit && visibleLine(file.lines[hit.line - 1] || "")) ctx.add(file.rel, hit.line, "The fresh generative AI requirements page says text or code must remind the user that the result may be inaccurate.", "Show that disclaimer next to the generated text or code.");
+  const hit = firstHit(ctx, /openai|firefly|stability\.ai|images\/generations|generative/i);
+  if (!hit || projectHas(ctx, /inaccurate/i)) return;
+  ctx.add(hit.file, hit.line, "The fresh generative AI requirements page says text or code must remind the user that the result may be inaccurate.", "Show that disclaimer next to the generated text or code.");
+}
+
+function checkAlt(ctx) {
+  for (const file of markupFiles(ctx)) {
+    for (const tag of openTags(file.code, ["img"])) {
+      if (hasAttr(tag.attrs, ["alt"]) || /\b(?:role\s*=\s*["']presentation["']|aria-hidden\s*=\s*(?:["']true["']|\{\s*true\s*\}))/.test(tag.attrs)) continue;
+      ctx.add(file.rel, tag.line, "The fresh accessibility page says images need alternative text.", 'Add an alt attribute. Use alt="" when the image is decorative.');
     }
   }
 }
 
-function checkAlt(ctx) {
-  for (const file of ctx.files.filter((file) => /\.html?$/i.test(file.rel))) {
-    file.lines.forEach((line, index) => {
-      if (/<img\b/i.test(line) && !/\balt=/i.test(line)) {
-        ctx.add(file.rel, index + 1, "The fresh accessibility page says images need alternative text.", 'Add an alt attribute. Use alt="" when the image is decorative.');
-      }
-    });
-  }
-}
+const FIELDS = ["input", "textarea", "select", "sp-textfield", "sp-number-field", "sp-picker", "sp-checkbox", "sp-slider", "sp-combobox", "Textfield", "TextField", "TextArea", "NumberField", "SearchField", "Picker", "Checkbox", "Slider", "ComboBox"];
+const LABEL_ELEMENT = /<label\b|<Label\b|<FieldLabel\b|<sp-field-label\b|\bhtmlFor\s*=|\bfor\s*=\s*["']/;
 
 function checkLabels(ctx) {
-  for (const file of ctx.files.filter((file) => /\.html?$/i.test(file.rel))) {
-    const hasLabel = /<label\b/i.test(file.text);
-    file.lines.forEach((line, index) => {
-      if (/<(input|textarea|select)\b/i.test(line) && !/type=["']hidden["']/i.test(line) && !/aria-label|aria-labelledby/i.test(line) && !hasLabel) {
-        ctx.add(file.rel, index + 1, "The fresh accessibility page says form fields need labels.", "Add a <label> or an aria-label.");
-      }
-    });
+  for (const file of markupFiles(ctx)) {
+    const labelled = LABEL_ELEMENT.test(file.code);
+    for (const tag of openTags(file.code, FIELDS)) {
+      if (tag.name === "input" && /^(hidden|submit|button|reset|image)$/i.test(attrValue(tag.attrs, "type") || "")) continue;
+      if (labelled || hasAttr(tag.attrs, ["aria-label", "aria-labelledby", "label", "title"])) continue;
+      ctx.add(file.rel, tag.line, "The fresh accessibility page says form fields need labels.", "Add a <label>, a label prop, or an aria-label.");
+    }
   }
 }
 
+const BUTTONS = ["button", "sp-button", "sp-action-button", "Button", "ActionButton"];
+
 function checkButtons(ctx) {
-  for (const file of ctx.files.filter((file) => /\.html?$/i.test(file.rel))) {
-    file.lines.forEach((line, index) => {
-      const empty = /<button\b[^>]*>\s*<\/button>/i.test(line);
-      const iconOnly = /<button\b/i.test(line) && !/aria-label/i.test(line) && /<(svg|img)\b/i.test(line) && !/>[^<]*[A-Za-z]/.test(line);
-      if (empty || iconOnly) {
-        ctx.add(file.rel, index + 1, "The fresh accessibility page expects controls to have a name a keyboard user can reach.", "Add visible text or an aria-label on the button.");
-      }
-    });
+  for (const file of markupFiles(ctx)) {
+    for (const tag of openTags(file.code, BUTTONS)) {
+      if (hasAttr(tag.attrs, ["aria-label", "aria-labelledby", "title", "label"])) continue;
+      if (hasVisibleText(innerOf(file.code, tag))) continue;
+      ctx.add(file.rel, tag.line, "The fresh accessibility page expects controls to have a name a keyboard user can reach.", "Add visible text or an aria-label on the button.");
+    }
   }
 }
 
@@ -323,82 +330,108 @@ function checkListingShot(ctx) {
 }
 
 function sourceFile(file) {
-  return !/\.json$/i.test(file.rel);
+  return !/\.(json|md)$/i.test(file.rel);
 }
 
-function visibleLine(line) {
-  const trimmed = line.trim();
-  return !(trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*") || trimmed.startsWith("<!--"));
+function codeFiles(ctx) {
+  return ctx.files.filter(sourceFile);
+}
+
+function markupFiles(ctx) {
+  return ctx.files.filter((file) => MARKUP_EXT.test(file.rel));
+}
+
+/** Evidence may sit in a different file than the code it covers, so the verdict is the project's. */
+function projectHas(ctx, pattern) {
+  return codeFiles(ctx).some((file) => pattern.test(file.code));
+}
+
+function firstHit(ctx, pattern) {
+  for (const file of codeFiles(ctx)) {
+    const index = file.codeLines.findIndex((line) => pattern.test(line));
+    if (index >= 0) return { file: file.rel, line: index + 1 };
+  }
+  return null;
 }
 
 function checkInputBounds(ctx) {
-  for (const file of ctx.files.filter((file) => /\.html?$/i.test(file.rel))) {
-    file.lines.forEach((line, index) => {
-      if (/<input\b/i.test(line) && /type=["']number["']|size/i.test(line) && !/\bmin=/.test(line) && !/\bmax=/.test(line)) {
-        ctx.add(file.rel, index + 1, "The fresh edge-case page says to handle empty input, long input, and boundary values.", "Set min and max, and reject scientific notation such as 4e28.");
-      }
-    });
+  for (const file of markupFiles(ctx)) {
+    for (const tag of openTags(file.code, ["input", "NumberField", "sp-number-field"])) {
+      if (tag.name === "input" && attrValue(tag.attrs, "type") !== "number") continue;
+      if (hasAttr(tag.attrs, ["min", "minValue"]) && hasAttr(tag.attrs, ["max", "maxValue"])) continue;
+      if (OWN_VALIDATION.test(tag.attrs)) continue;
+      ctx.add(file.rel, tag.line, "The fresh edge-case page says to handle empty input, long input, and boundary values.", "Set min and max, and reject scientific notation such as 4e28.");
+    }
   }
 }
 
+const SIGN_IN = /\b(signIn|logIn|login|sign-in|signInWith\w*)\b/;
+const SIGN_OUT = /\b(signOut|logOut|logout|sign-out|signout)\b/i;
+
 function checkLogout(ctx) {
-  for (const file of ctx.files.filter(sourceFile)) {
-    if (/\b(signIn|logIn|login|sign-in)\b/.test(file.text) && !/\b(signOut|logOut|logout|sign-out)\b/.test(file.text)) {
-      const hit = lineMatch(file, /\b(signIn|logIn|login|sign-in)\b/);
-      ctx.add(file.rel, (hit?.line ?? 1), "The fresh authentication page says a user must be able to log out.", "Add a logout button or link that is easy to find.");
-    }
-  }
+  const hit = firstHit(ctx, SIGN_IN);
+  if (!hit || projectHas(ctx, SIGN_OUT)) return;
+  ctx.add(hit.file, hit.line, "The fresh authentication page says a user must be able to log out.", "Add a logout button or link that is easy to find.");
 }
 
 function checkPopup(ctx) {
-  for (const file of ctx.files.filter(sourceFile)) {
-    if (/\boauth\b|startOAuth|signInWith/i.test(file.text) && !/POPUP_BLOCKED/.test(file.text)) {
-      const hit = lineMatch(file, /\boauth\b|startOAuth|signInWith/i);
-      ctx.add(file.rel, (hit?.line ?? 1), "The fresh authentication page says an OAuth add-on must tell the user when the browser blocked the popup.", "When the API returns POPUP_BLOCKED, show that message in the panel.");
-    }
-  }
+  const hit = firstHit(ctx, /\.oauth\b|\bstartOAuth\b/);
+  if (!hit || projectHas(ctx, /POPUP_BLOCKED/)) return;
+  ctx.add(hit.file, hit.line, "The fresh authentication page says an OAuth add-on must tell the user when the browser blocked the popup.", "When the API returns POPUP_BLOCKED, show that message in the panel.");
 }
 
+const TEXT_ENTRY = ["input", "textarea", "sp-textfield", "sp-number-field", "Textfield", "TextField", "TextArea", "NumberField"];
+const VALIDATION = /setCustomValidity|aria-invalid|isInvalid|validationState|errorMessage|checkValidity|\.validity|invalid|\berror\b/i;
+
 function checkValidation(ctx) {
-  for (const file of ctx.files.filter((file) => /\.html?$/i.test(file.rel))) {
-    if (/<input\b/i.test(file.text) && !/setCustomValidity|aria-invalid|error|invalid/i.test(file.text)) {
-      const hit = lineMatch(file, /<input\b/i);
-      ctx.add(file.rel, (hit?.line ?? 1), "The fresh usability page says user input must get a confirmation or an error.", "Show an in-panel error for an invalid value and a confirmation when the action succeeds.");
-    }
+  if (projectHas(ctx, VALIDATION)) return;
+  for (const file of markupFiles(ctx)) {
+    const tag = openTags(file.code, TEXT_ENTRY).find((item) => !(item.name === "input" && /^(hidden|submit|button|reset|image|checkbox|radio|range|file)$/i.test(attrValue(item.attrs, "type") || "")));
+    if (!tag) continue;
+    ctx.add(file.rel, tag.line, "The fresh usability page says user input must get a confirmation or an error.", "Show an in-panel error for an invalid value and a confirmation when the action succeeds.");
+    return;
   }
 }
 
 function eachCopyLine(ctx, visit) {
   for (const file of ctx.files) {
-    if (file.rel === "manifest.json" || /(^|\/)package\.json$/.test(file.rel)) continue;
-    const code = /\.(jsx?|tsx?)$/i.test(file.rel);
-    const prose = /\.(html?|md)$/i.test(file.rel);
-    if (!code && !prose) continue;
-    file.lines.forEach((line, index) => {
-      if (skipCopyLine(line)) return;
-      if (code && !/["'`]/.test(line)) return;
+    if (!COPY_EXT.test(file.rel)) continue;
+    const script = /\.(jsx?|tsx?|mjs|cjs|mts|cts)$/i.test(file.rel);
+    const markup = /\.(jsx|tsx|vue|svelte)$/i.test(file.rel) || (script && /\.[jt]sx?$/i.test(file.rel) && /<[A-Za-z]/.test(file.code));
+    file.codeLines.forEach((line, index) => {
+      if (!line.trim() || skipCopyLine(line)) return;
+      if (script && !/["'`]/.test(line) && !(markup && jsxText(line))) return;
       visit(file, line, index);
     });
   }
 }
 
+/** JSX text has no quotes: `<button>Save</button>`, or a line of words between tags. */
+function jsxText(line) {
+  return />[^<>{}\n]*[A-Za-z]{2,}[^<>{}\n]*</.test(line)
+    || /^\s*[A-Z][A-Za-z'\u2019,.!?-]*(?:\s+[A-Za-z'\u2019,.!?:;-]+)+\s*$/.test(line);
+}
+
 function skipCopyLine(line) {
   const trimmed = line.trim();
   if (trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*") || trimmed.startsWith("<!--")) return true;
+  if (/^(?:import\b|export\b[^"'`]*\bfrom\b|\}\s*from\b)|\brequire\s*\(/.test(trimmed)) return true;
+  if (/^console\.(?:log|warn|error|info|debug|trace)\(/.test(trimmed)) return true;
   if (/<title\b/i.test(line)) return true;
   if (/<meta\b/i.test(line) && /\bname=["'](?:keywords|description)["']/i.test(line)) return true;
   return false;
 }
 
-function lineMatch(file, pattern) {
-  const index = file.lines.findIndex((line) => pattern.test(line));
-  return index >= 0 ? { line: index + 1 } : null;
-}
+const NOT_A_NAME = new Set(["the", "this", "that", "these", "those", "your", "our", "my", "an", "a", "any", "each", "every", "use", "run", "in", "on", "to", "for", "of", "with", "and", "or", "as", "is", "it"]);
 
+/** "[Name] Adobe Express add-on" is wrong. "the Adobe Express add-on" is only a way to point at the product. */
 function checkOfferingName(ctx) {
   eachCopyLine(ctx, (file, line, index) => {
-    if (/(?<!for )Adobe Express add-on/i.test(line)) {
-      ctx.add(file.rel, index + 1, 'The fresh brand guide says "[name] add-on for Adobe Express", not "[name] Adobe Express add-on".', line.replace(/Adobe Express add-on/ig, "add-on for Adobe Express"));
+    for (const match of line.matchAll(/(?:^|[^A-Za-z0-9])([A-Za-z][A-Za-z0-9&'-]*)\s+Adobe Express [Aa]dd-?[Oo]n\b/g)) {
+      const before = match[1];
+      if (NOT_A_NAME.has(before.toLowerCase()) || !/^[A-Z0-9]/.test(before)) continue;
+      ctx.add(file.rel, index + 1, 'The fresh brand guide says "[name] add-on for Adobe Express", not "[name] Adobe Express add-on".', line.replace(/Adobe Express [Aa]dd-?[Oo]n/g, "add-on for Adobe Express"));
+      return;
     }
   });
 }
@@ -413,4 +446,49 @@ function checkLogoFile(ctx) {
 
 function listingImages(ctx) {
   return ctx.images.filter((image) => /(^|\/)(listing|thumbnails)\//.test(image.rel));
+}
+
+function checkPackageRoot(ctx) {
+  for (const pkg of ctx.packages || []) {
+    if (pkg.unreadable) {
+      ctx.add(pkg.rel, 1, `${pkg.rel} could not be read as a zip: ${pkg.unreadable}`, "Build it again with npm run package.");
+    } else if (!pkg.entries.includes("manifest.json")) {
+      const nested = pkg.entries.find((name) => /^[^/]+\/manifest\.json$/.test(name));
+      ctx.add(pkg.rel, 1, nested
+        ? `${pkg.rel} holds the folder "${nested.split("/")[0]}/", so manifest.json is not at the root. Adobe rejects that upload with MANIFEST_NOT_FOUND_ERROR.`
+        : `${pkg.rel} has no manifest.json at its root. Adobe rejects that upload with MANIFEST_NOT_FOUND_ERROR.`,
+      "Zip the contents of the built folder, not the folder itself. npm run package does this.");
+    }
+  }
+}
+
+function checkPackageSize(ctx) {
+  for (const pkg of ctx.packages || []) {
+    if (pkg.bytes > PACKAGE_LIMIT) {
+      ctx.add(pkg.rel, 1, `${pkg.rel} is ${(pkg.bytes / 1048576).toFixed(1)} MB. The fresh page says the package must not exceed 50 MB.`, "Drop unused assets and source maps, and compress images and video, then package again.");
+    }
+  }
+}
+
+function checkPackageHidden(ctx) {
+  for (const pkg of ctx.packages || []) {
+    const hidden = pkg.entries.filter((name) => name.split("/").some((part) => part.startsWith(".") && part.length > 1) || /(^|\/)__MACOSX(\/|$)/.test(name));
+    if (hidden.length) {
+      const shown = hidden.slice(0, 3).join(", ") + (hidden.length > 3 ? `, and ${hidden.length - 3} more` : "");
+      ctx.add(pkg.rel, 1, `${pkg.rel} holds hidden files (${shown}). The fresh page says hidden files should not be in the package.`, "Use npm run package, or on a Mac: zip -r name.zip . -x '**/.*' -x '**/__MACOSX' -x '*.DS_Store'.");
+    }
+  }
+}
+
+function checkPackageEntry(ctx) {
+  for (const pkg of ctx.packages || []) {
+    if (!pkg.manifest) continue;
+    for (const entry of pkg.manifest.entryPoints || []) {
+      for (const key of ["main", "documentSandbox"]) {
+        if (entry[key] && !pkg.entries.includes(entry[key])) {
+          ctx.add(pkg.rel, 1, `${pkg.rel} names ${entry[key]} as ${key}, and that file is not inside the zip. The package must hold the built content.`, "Build before you package, so the files the manifest names are in the zip.");
+        }
+      }
+    }
+  }
 }

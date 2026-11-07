@@ -1,86 +1,81 @@
-# Simulate the panel
+# Walk the panel
 
-Open the panel as part of the review. Do not ask first.
+Open the panel as part of the review. Do not ask first. Do not open `express.adobe.com`. Do not sign in.
 
-Do not open `express.adobe.com`. Do not sign in. Adobe draws the title bar. The page you review is the add-on document, at the width Express gives it: **320px** wide and full height. The body padding on that page is **24px**, and the gap between elements is **16px**. Those numbers are in the fresh `visual-elements.md`. If that file no longer says them, do not keep enforcing them.
+The page you review is the add-on document at the width Express gives it: **320px** wide and full height. The body padding there is **24px** and the gap between elements is **16px**. Those numbers come from the fresh `visual-elements.md`. If that file no longer says them, do not keep enforcing them.
 
-`review.mjs` writes `views.json`. It does not launch a browser. You do.
-
-## 1. Start the document
-
-From the project root, the folder that contains `package.json`:
+## Run the audit
 
 ```bash
-npm start
+node scripts/audit.mjs
 ```
 
-Use that script when it calls `ccweb-add-on-scripts`. The server is `https://localhost:5241`. `https://localhost:5241/` is a JSON manifest. It is not the panel.
+It finds the panel URL in `views.json` (the `document` entry). It needs the panel to answer somewhere, and it never signs in to Adobe to get that. In order: something already runs at that URL (the person's own dev server); or the project has a build script, so it builds the add-on when the build is older than the source and serves the build from this computer; or the project is plain files, which it serves as they are; or, last, it runs `npm start` and gives up if that waits for a sign-in. It stops what it started when the walk ends.
 
-The panel URL is in `views.json` on the `document` entry. The CLI serves the entry file at:
+It opens a private headless Chrome that does not touch the user's browser or profile, sized 320×800 at 2×, with software WebGL so a 3D view draws. Every visit starts like a first visit, with no saved state. It then presses its way through the panel: every control that opens a screen, a tab, a menu, or a dialog, two levels deep, up to 28 screens. A welcome tour or notice that opens with the panel is stepped through (Next, Skip, Close), and it costs no depth, so the panel behind it is walked too. A control that is on every screen, such as a filter or a tab bar, is pressed once. A grid of look-alike buttons counts as one control.
 
-```text
-https://localhost:5241/<testId>/<main>
-```
+The same problem on several screens is one note, with the other screens listed in it. A menu or popover that covers a control on purpose, a control scrolled out of sight, and a sticky bar that content scrolls under are not reported as covered. A sticky bar is reported only when the person cannot scroll the control out from under it.
 
-`testId` and `main` come from `manifest.json`. Example: `main` is `index.html` and `testId` is `abc`, so the document is `https://localhost:5241/abc/index.html`.
+It will not press anything that looks like delete, reset, sign out, buy, or checkout, a download, a file picker, or a link that leaves the panel. A page that tries to open a new tab or an alert is stopped.
 
-If the source stubs the host behind `?preview=1`, the `document` URL already includes that query. Open it. Preview mode is what makes buttons work in a normal browser. Without that stub, the Adobe SDK script expects to run inside Express and the page can stay blank. Say so. Do not invent a host stub unless the user asked you to add one.
+It repeats every screen it found in dark (`prefers-color-scheme: dark`) with reduced motion, so a screen that only breaks in dark is caught.
 
-Accept the local certificate warning if the browser shows one. That certificate belongs to the CLI.
+It writes each screen's capture, with the bugs outlined in pink and numbered, into the session. The dashboard shows them as they arrive. It also looks up where each bug is in the add-on's source, from the visible label, and gives a `file:line`. That is a lead, not proof. Open the file and check.
 
-If `npm start` is missing, serve the built folder and open `index.html` directly. Say the official CLI was not used.
+Run it again after every fix. It matches bugs across runs: one that is gone is marked `fixed`, one that is still there stays `open`, a new one is added.
 
-## 2. Size the browser
+## What it measures
 
-Set the viewport to **320×800** before the first screenshot. 320 is the panel width. 800 is tall enough to scroll the body. Do not review a full desktop window and call it the panel.
+| Rule | What it means | Handling |
+| --- | --- | --- |
+| `dialog-close-misplaced` | The close control is in the lower half of the dialog. People look top right. | Fix now |
+| `dialog-no-exit` | A dialog has no visible Close, Cancel, or Back. | Fix now. Only a warning when Escape closes it. |
+| `dialog-overflows` | The dialog does not fit the panel and does not scroll. | Fix now. A warning when it does scroll. |
+| `control-covered` | A control is under another element, so a click lands on the wrong thing. | Fix now |
+| `invisible-cover` | Something at opacity 0 sits over the panel and takes the clicks meant for its controls. Often a dialog or scrim whose animation ends invisible when reduced motion is on. | Fix now |
+| `control-offscreen` | A control sits outside the 320px panel, so it cannot be reached. | Fix now |
+| `scrolls-sideways` | The content is wider than the panel. | Fix now |
+| `image-broken` | An image did not load. | Fix now |
+| `panel-blank` | Nothing on the screen: no text, no control, no image. | Fix now |
+| `small-target` | A control is under 24×24px with another control within 24px. | Asked in `fix` |
+| `text-clipped` | Text is cut off. | Asked in `fix` |
+| `small-type` | Text is under 11px. | Asked in `fix` |
+| `low-contrast` | Text is under 4.5:1 against its background. The note names the theme. | Asked in `fix` |
+| `click-without-keyboard` | Something clickable is not a button, a link, or focusable. | Asked in `fix` |
+| `script-error` | The page threw an uncaught error while it was walked. | Asked in `fix` |
+| `request-failed` | A file from the add-on itself failed to load. | Asked in `fix` |
 
-Check light, then dark. Dark is `prefers-color-scheme: dark`, plus the add-on's own theme control when it has one.
+**Fix now** means: fix it without asking, run the audit again, and repeat until none is open. These are measurements, not opinions, and no user wants them left. A bug that cannot be fixed without changing the design goes in the closing summary with the reason.
 
-## 3. Browse every screen
+The probe follows [WCAG 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html): a small target that stands alone, with no other control within 24px, is not flagged.
 
-`views.json` has three kinds:
+## What it does not measure
 
-- `document` is the URL to open first. The first paint is the home screen. Screenshot it before clicking.
-- `screen` is a component the shell mounts behind a condition (`studio ? <StudioView>`, `guideOpen && <Guide>`). Read that line and the JSX around it. Click the control that sets the condition. The control's visible name or `aria-label` is the `control` entry, or the text in the handler just above the screen.
-- `control` is a button or `aria-label` on one line. Open the ones that change the screen, a tab, a menu, or a dialog. Skip a control that only calls the network, starts a download, or needs a real license.
+Look at the captures yourself for these, and add a note with `session.mjs note` when you see one on a screen:
 
-Order:
+- A third-party logo or wordmark that implies a partnership. Ask whether they have written permission.
+- A crown, a lock, or the word "Premium" on a paid item, including after the license state.
+- A long export or encode with no Cancel, or a Cancel that does not stop it. Or a Cancel that is shown after the request has gone to a server, with no word that credits are still used.
+- A license field that accepts an empty key, or shows no message when Upgrade is pressed with nothing typed.
+- Spelling "addon" or "plugin" where the UI page requires "add-on", or "Express" without "Adobe" in front of it.
+- A blank panel or an endless spinner on a slow or missing network. Adobe's reviewers test on real networks.
 
-1. Home, untouched.
-2. Each `screen`, one at a time. Go back between them.
-3. Inside a screen, each tab and each dialog that screen renders.
-4. Empty, error, and locked states when the source has them. Use the preview stub's test value when the source documents one, such as a prompt answer. Do not type a real password.
-5. Light, then the same path in dark.
+Keep the 320px captures. They are the panel images inside a listing screenshot. They are not the upload. The 1360×800 files are the Listing step, after the fixes.
 
-After each click, read the page. A screenshot alone is not the check. Confirm the click changed the screen.
+## The paid screens
 
-Save images under `review-output/<addon-name>/`. Name them `<screen>-<light|dark>.png`.
+When `audit.mjs` prints `needsLicense: true`, the first pass found a license field. Ask the `credentials` question. On **provide**, `node scripts/audit.mjs --licensed` replays the way to that field, types the license, presses its button, and measures the screens that open. The license comes from the dashboard's memory or from `EXPRESS_REVIEW_SECRET`. It is never printed, written to a file, or put in `audit.json`.
 
-## 4. What a mistake looks like
+The output says what happened: accepted, not accepted (the `access` step is then skipped with that reason), or entered with nothing changing. If the license is not accepted, say so in the summary. Do not keep trying keys.
 
-Record a mistake only when you can see it on that screen:
+## When the audit cannot run
 
-- The main region is empty, or a control sits on top of another.
-- Text is clipped at 320px, or it overflows the body.
-- Body padding is not 24px, or stacked elements are not 16px apart, and the fresh visual-elements page still says those sizes.
-- A third-party logo or wordmark implies a partnership. Ask whether they have written permission. Do not limit this to four brand names.
-- A crown, a lock icon, or the word "Premium" is on a paid item, including after the preview license state.
-- A long export or encode has no Cancel, or Cancel does not stop it.
-- Success or error text cannot be read in light or in dark.
-- Spelling is "addon" or "plugin" where the UI page requires "add-on", or "Express" is used without "Adobe" in front of it.
+If there is no Chrome, Edge, or Chromium (set `CHROME_PATH`), or the panel can neither be found nor built, `audit.mjs` says why and exits. Say it in one sentence and walk the panel by hand:
 
-Keep the 320px captures. They are the panel images inside a listing screenshot. They are not the upload. Do not ask about the 1360×800 files here. That question is the Listing phase, after the fixes.
+1. From the project root run `npm start`. The server is `https://localhost:5241`. `https://localhost:5241/` is a JSON manifest, not the panel. The panel is the `document` URL in `views.json`, which already carries `?preview=1` when the source stubs the host. Accept the local certificate warning. Do not invent a host stub unless asked.
+2. Set the viewport to 320×800 before the first screenshot. Check light, then dark.
+3. Open the home screen untouched, then each `screen` in `views.json`, then each tab and dialog inside it, then the empty, error, and locked states the source has.
+4. After each click, read the page. A screenshot alone is not the check. Press Tab through each screen: every control reachable, the focused one visible.
+5. Look for what the table above lists, and record each with `session.mjs note --text "..." --screen "..." --shot file.png`. Fix the ones the table marks **Fix now**, then rescan.
 
-## 5. Fix, then look again
-
-List every panel issue in one message. Then ask once: Fix all panel issues (Recommended), Leave the panel issues for later, or Stop. Do not ask once per control. Do not edit until they pick Fix all panel issues.
-
-When they do:
-
-1. Fix one mistake. The edit is the suggestion already in the report, or the smallest source change that removes what you saw on the screen.
-2. Let the dev server rebuild. Reload only that screen.
-3. Confirm the mistake is gone in light and dark at 320px. If it is still there, the fix is not done.
-4. Run the scanner again. A fix that clears the screen and adds a new source error is not done.
-5. Stop `npm start` when the walk is finished. Do not leave port 5241 occupied.
-
-If the server or the build fails, keep the source report and say which command failed.
+Stop `npm start` when the walk ends. Do not leave port 5241 occupied. Set the `panel` step to `done` with a detail such as `5 screens, light and dark`.

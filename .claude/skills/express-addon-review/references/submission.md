@@ -1,6 +1,8 @@
 # Publisher form
 
-These fields are the Listing phase. They are not code findings. `index.html` keywords, the meta description, and the document title do not fill this form. Check a `listing/` file when the repo has one. Ask once whether to write the listing. A yes means one section, then wait, and the screenshots in [listing-shots.md](listing-shots.md). Do not invent a value. `listing-guide.md` is an older walkthrough. If it disagrees with the fresh `public-dist.md`, use `public-dist.md`.
+These fields are the Listing phase. They are not code findings. `index.html` keywords, the meta description, and the document title do not fill this form. Check a `listing/` file when the repo has one. The `listing` question asks once whether to write the listing. A yes means two things, in this order. First, draft every field the repo can answer: name, summary, description, and keywords. Quote the manifest, the package description, and the visible panel. Do not invent a value. Put the draft on the session and ask `listing-review`. Second, list the fields only the publisher knows (below). Do not stop to ask for them: a dashboard question carries choices, not typed values, and a chat message with no command after it ends your turn. Put them in the closing summary as a short "Still needed from you" checklist, each with its limit, and finish the review. The screenshots follow [listing-shots.md](listing-shots.md). `listing-guide.md` is an older walkthrough. If it disagrees with the fresh `public-dist.md`, use `public-dist.md`.
+
+`listing.json` for `session.mjs listing --json` has `name`, `summary`, `description`, and `keywords` (an array). Keep each inside the limits below. The dashboard shows a character count for each.
 
 The in-app form is one page with these sections:
 
@@ -16,9 +18,11 @@ The section names come from that form. The fields and limits come from the fresh
 
 A `*` field is required before submit. A draft can be saved without it.
 
-## Ask when the repo does not contain the value
+## The checklist for what the repo does not contain
 
-1. If the tree has more than one `manifest.json`, which add-on should be reviewed?
+Fill what the repo answers. List the rest in the summary for the publisher to enter. If the review itself needs one of these, a real choice such as which add-on to review, publish it with `session.mjs ask` and a custom `--prompt` and `--option`, then wait.
+
+1. If the tree has more than one `manifest.json`, which add-on should be reviewed? (Ask this at the start, as a question with one option per manifest.)
 2. Listing (`listing-details`). Read the fresh page for the current limits. Last fetch:
    - Add-on name, 25, required, unique
    - Summary, 50, required
@@ -56,4 +60,4 @@ A `*` field is required before submit. A draft can be saved without it.
    - Notes to the reviewer
    - Test credentials or a coupon when the add-on logs in or has a paid feature
 
-Do not say the listing is ready until they have answered, or they have said to skip the form.
+Say the listing is drafted, not ready. It is ready when the publisher has filled in what is on the checklist.

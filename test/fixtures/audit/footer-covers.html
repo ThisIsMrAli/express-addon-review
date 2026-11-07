@@ -1,0 +1,9 @@
+<!doctype html><meta charset="utf-8"><title>The last button can never be scrolled out from under the fixed footer</title>
+<style>
+  body { margin: 0; padding: 12px; font: 14px system-ui; color: #111; background: #fff; }
+  .space { height: 1300px; }
+  .footer { position: fixed; left: 0; right: 0; bottom: 0; height: 64px; background: #eef; padding: 8px; box-sizing: border-box; }
+</style>
+<div class="space">Content</div>
+<button style="height: 40px; width: 120px">Last</button>
+<div class="footer">Footer</div>

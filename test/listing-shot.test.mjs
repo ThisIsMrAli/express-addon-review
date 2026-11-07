@@ -4,36 +4,8 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import zlib from "node:zlib";
+import { png } from "./helpers.mjs";
 import { imageSize } from "../.claude/skills/express-addon-review/scripts/lib/images.mjs";
-
-function png(width, height) {
-  const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(width, 0);
-  ihdr.writeUInt32BE(height, 4);
-  ihdr[8] = 8;
-  const chunk = (type, data) => {
-    const name = Buffer.from(type);
-    const len = Buffer.alloc(4);
-    len.writeUInt32BE(data.length);
-    const crc = Buffer.alloc(4);
-    crc.writeUInt32BE(crc32(Buffer.concat([name, data])) >>> 0);
-    return Buffer.concat([len, name, data, crc]);
-  };
-  const rows = [];
-  for (let y = 0; y < height; y += 1) rows.push(Buffer.concat([Buffer.from([0]), Buffer.alloc(width)]));
-  return Buffer.concat([sig, chunk("IHDR", ihdr), chunk("IDAT", zlib.deflateSync(Buffer.concat(rows))), chunk("IEND", Buffer.alloc(0))]);
-}
-
-function crc32(buf) {
-  let c = ~0;
-  for (const byte of buf) {
-    c ^= byte;
-    for (let i = 0; i < 8; i += 1) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
-  }
-  return ~c;
-}
 
 test("a wide capture is fitted to 1360x800", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "listing-shot-"));

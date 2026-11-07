@@ -31,3 +31,5 @@ The premium-content page is about Adobe Express document content. It is not the 
 `best-practices.md` still says only the light theme exists. `theme-locale.md` is the theme rule.
 
 Published pages are rendered from the markdown. Prefer the downloaded markdown when they disagree.
+
+The upload checks (`package-root`, `package-size`, `package-hidden`, `package-entry`) come from the public distribution page, and each is gated on its sentence being in the fresh download like the rest. `package-stale` is not an Adobe rule. It compares the zip with the source on disk.

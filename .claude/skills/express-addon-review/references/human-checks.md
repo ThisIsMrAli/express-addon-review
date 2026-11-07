@@ -1,9 +1,10 @@
 # Still needs a person
 
-The scanner does not open Adobe Express. Simulate the panel in a browser at 320px wide.
+The scanner does not open Adobe Express. `audit.mjs` simulates the panel in a browser at 320px wide and finds layout bugs. It cannot judge taste or meaning.
 
-- The running panel, in light and dark, at 320px. Open the `document` URL from `views.json` and click each `screen`. The steps are in `visual.md`.
-- Paid marks after a real license or login.
+- Whether the screens make sense: wording, order, and whether a first-time user knows what to press. The audit measures; it does not read.
+- Screens the audit could not reach: behind a login, a long task, or a control it is told never to press. `session.json` lists what it skipped.
+- Paid marks after a real license or login. With a test license, `audit.mjs --licensed` walks the paid screens too.
 - A long encode whose Cancel button really stops the work.
 - A rendition that shows progress and produces a file.
 - Success and error text that can be read. Adobe does not publish a 4.5:1 ratio.

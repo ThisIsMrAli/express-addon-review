@@ -1,6 +1,6 @@
 {
   "name": "express-addon-review",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Check an Adobe Express add-on against the current design, brand, and publish rules.",
@@ -12,6 +12,9 @@
     "test": "node --test",
     "scan": "node .claude/skills/express-addon-review/scripts/scan.mjs",
     "review": "node .claude/skills/express-addon-review/scripts/review.mjs",
+    "dashboard": "node .claude/skills/express-addon-review/scripts/dashboard.mjs",
+    "session": "node .claude/skills/express-addon-review/scripts/session.mjs",
+    "render-listing": "node .claude/skills/express-addon-review/scripts/render-listing.mjs",
     "refresh": "node .claude/skills/express-addon-review/scripts/refresh-docs.mjs",
     "link-agents": "node install-agents.mjs"
   }

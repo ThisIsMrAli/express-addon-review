@@ -9,7 +9,8 @@ export function loadLive(dir = liveDir) {
   if (!fs.existsSync(dir)) return docs;
   walk(dir, (file) => {
     if (!TEXT.has(path.extname(file))) return;
-    docs[path.relative(dir, file)] = fs.readFileSync(file, "utf8");
+    // Keys are the doc paths Adobe publishes, so they always use forward slashes.
+    docs[path.relative(dir, file).split(path.sep).join("/")] = fs.readFileSync(file, "utf8");
   });
   return docs;
 }

@@ -1,3 +1,5 @@
+import { attrValue, hasAttr, MARKUP_EXT, openTags, OWN_VALIDATION } from "./source.mjs";
+
 const BRANDS = ["Figma", "Canva", "Notion", "Framer"];
 
 export const CUSTOM_RULES = [
@@ -29,6 +31,7 @@ export const CUSTOM_RULES = [
   {
     id: "unbounded-number",
     severity: "warn",
+    supersededBy: "input-bounds",
     run: checkUnbounded
   },
   {
@@ -61,9 +64,9 @@ function checkName(ctx) {
 }
 
 function checkPaidState(ctx) {
-  for (const file of ctx.files.filter((file) => !/\.json$/i.test(file.rel))) {
-    const unlocked = /unlocked|license activated|licence activated|you are unlocked/i.test(file.text);
-    const marker = /\bcrown\b|lock-icon|lock icon|\bPremium\b/i.test(file.text);
+  for (const file of ctx.files.filter((entry) => MARKUP_EXT.test(entry.rel))) {
+    const unlocked = /unlocked|license activated|licence activated|you are unlocked/i.test(file.code);
+    const marker = /\bcrown\b|lock-icon|lock icon|\bPremium\b/i.test(file.code);
     if (unlocked && marker) {
       ctx.add(file.rel, 1, "Reviewers rejected a screen that said the license was active while crown or Premium marks were still on the items.", "Remove the paid marks from unlocked items, or say on each mark that the item is already included.");
     }
@@ -78,11 +81,11 @@ function checkBrands(ctx) {
     ctx.add(image.rel, 1, `Reviewers rejected a ${hit[1]} mark that implied a relationship the add-on did not have.`, `Remove the ${hit[1]} mark, or keep a written permission note next to it. The browser pass still looks for every other third-party logo.`);
   }
   for (const file of ctx.files) {
-    if (!/\.(html?|jsx?|tsx?)$/i.test(file.rel)) continue;
-    file.lines.forEach((line, index) => {
-      const trimmed = line.trim();
-      if (trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*") || trimmed.startsWith("<!--")) return;
-      if (/\.(jsx?|tsx?)$/i.test(file.rel) && !/["'`]/.test(line)) return;
+    if (!MARKUP_EXT.test(file.rel)) continue;
+    const code = /\.(jsx?|tsx?|mjs|cjs|mts|cts)$/i.test(file.rel);
+    file.codeLines.forEach((line, index) => {
+      if (!line.trim()) return;
+      if (code && !/["'`]/.test(line)) return;
       const hit = line.match(pattern);
       if (!hit || /license|permission|authorized/i.test(line)) return;
       ctx.add(file.rel, index + 1, `Reviewers rejected a ${hit[1]} mark that implied a relationship the add-on did not have.`, `Remove the ${hit[1]} mark, or keep a written permission note next to it. The browser pass still looks for every other third-party logo.`);
@@ -90,61 +93,63 @@ function checkBrands(ctx) {
   }
 }
 
+const CANCEL = /cancel|abort|AbortController/i;
+const DOWNLOAD = /\b(download|saveAs|createObjectURL)\b/;
+
+// A cancel path or a download may live in another file than the encoder, so both are judged for the project.
 function checkExportCancel(ctx) {
-  for (const file of exportFiles(ctx)) {
-    if (/cancel|abort|AbortController/i.test(file.text)) continue;
-    ctx.add(file.rel, lineOf(file, /\b(gif|mp4|encode|export)\b/i), "Reviewers rejected a GIF or video export that could not be cancelled while it was running.", "Add a Cancel control that aborts the encode.");
-  }
+  const files = exportFiles(ctx);
+  if (!files.length || ctx.files.some((file) => CANCEL.test(file.code))) return;
+  ctx.add(files[0].rel, lineOf(files[0], ENCODER), "Reviewers rejected a GIF or video export that could not be cancelled while it was running.", "Add a Cancel control that aborts the encode. If the work cannot be stopped once it has started, say so, and say whether credits are used.");
 }
 
 function checkExportDownload(ctx) {
-  for (const file of exportFiles(ctx)) {
-    if (/\b(download|saveAs|createObjectURL)\b/.test(file.text)) continue;
-    ctx.add(file.rel, lineOf(file, /\b(gif|mp4|encode|export)\b/i), "Reviewers rejected an export that finished and still had no PNG, GIF, or video file to download.", "When encoding succeeds, start the download or hand the file to the document.");
-  }
+  const files = exportFiles(ctx);
+  if (!files.length || ctx.files.some((file) => DOWNLOAD.test(file.code))) return;
+  ctx.add(files[0].rel, lineOf(files[0], ENCODER), "Reviewers rejected an export that finished and still had no PNG, GIF, or video file to download.", "When encoding succeeds, start the download or hand the file to the document.");
 }
 
 function checkUnbounded(ctx) {
-  for (const file of ctx.files) {
-    file.lines.forEach((line, index) => {
-      const numberField = /<input\b/i.test(line) && (/type=["']number["']/i.test(line) || /size/i.test(line));
-      if (!numberField || /\bmin=/.test(line) || /\bmax=/.test(line)) return;
-      ctx.add(file.rel, index + 1, "Reviewers rejected a size field that kept a value like 4.11e+28.", "Set a minimum and a maximum, and reject scientific notation.");
-    });
+  for (const file of ctx.files.filter((entry) => MARKUP_EXT.test(entry.rel))) {
+    for (const tag of openTags(file.code, ["input", "NumberField", "sp-number-field"])) {
+      if (tag.name === "input" && attrValue(tag.attrs, "type") !== "number" && !/size/i.test(tag.attrs)) continue;
+      if (hasAttr(tag.attrs, ["min", "minValue"]) && hasAttr(tag.attrs, ["max", "maxValue"])) continue;
+      if (OWN_VALIDATION.test(tag.attrs)) continue;
+      ctx.add(file.rel, tag.line, "Reviewers rejected a size field that kept a value like 4.11e+28.", "Set a minimum and a maximum, and reject scientific notation.");
+    }
   }
 }
 
 function checkPlaceholder(ctx) {
-  for (const file of ctx.files.filter((file) => /\.html?$/i.test(file.rel))) {
-    if (/user-select:\s*none/.test(file.text)) continue;
-    file.lines.forEach((line, index) => {
-      if (/<(div|p|span)\b[^>]*(placeholder|hint)/i.test(line)) {
-        ctx.add(file.rel, index + 1, "Reviewers rejected instructional text that could be selected and pasted.", "Use a placeholder attribute, or set user-select: none on the hint.");
+  for (const file of ctx.files.filter((entry) => /\.(html?|vue|svelte)$/i.test(entry.rel))) {
+    if (/user-select:\s*none/.test(file.code)) continue;
+    for (const tag of openTags(file.code, ["div", "p", "span"])) {
+      if (/(placeholder|hint)/i.test(tag.attrs)) {
+        ctx.add(file.rel, tag.line, "Reviewers rejected instructional text that could be selected and pasted.", "Use a placeholder attribute, or set user-select: none on the hint.");
       }
-    });
+    }
   }
 }
 
+const ENCODER = /\bencode(?!URI)\w*|\b(ffmpeg|createObjectURL|downloadBlob|MediaRecorder)\b/i;
+
 function exportFiles(ctx) {
   return ctx.files.filter((file) => {
-    const code = file.text.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:])\/\/.*$/gm, "$1");
-    const withoutKeyword = code.replace(/\bexport\s+(?:default\s+|async\s+)?(?:function|const|class|type|interface|enum|\{)/g, " ");
-    const produces = /\b(gif|mp4|video)\b/i.test(withoutKeyword);
-    const action = /\bencode(?!URI)\w*|\b(ffmpeg|createObjectURL|downloadBlob|MediaRecorder)\b/i.test(withoutKeyword);
-    return produces && action;
+    if (!/\.(jsx?|tsx?|mjs|cjs|mts|cts|vue|svelte)$/i.test(file.rel)) return false;
+    const code = file.code.replace(/\bexport\s+(?:default\s+|async\s+)?(?:function|const|class|type|interface|enum|\{)/g, " ");
+    return /\b(gif|mp4|video)\b/i.test(code) && ENCODER.test(code);
   });
 }
 
 function lineOf(file, pattern) {
-  const index = file.lines.findIndex((line) => pattern.test(line));
+  const index = file.codeLines.findIndex((line) => pattern.test(line.replace(/\bexport\b/g, " ")));
   return index >= 0 ? index + 1 : 1;
 }
 
 function checkUnpkg(ctx) {
   for (const file of ctx.files) {
-    if (/\.json$/i.test(file.rel)) continue;
-    file.lines.forEach((line, index) => {
-      if (/^\s*\/\//.test(line) || /^\s*\*/.test(line)) return;
+    if (/\.(json|md)$/i.test(file.rel)) continue;
+    file.codeLines.forEach((line, index) => {
       if (/unpkg\.com/i.test(line)) {
         ctx.add(file.rel, index + 1, "Reviewers rejected add-ons that opened to a blank panel because a library was loaded from unpkg and that file was removed.", "Bundle the library with the add-on. Do not load it from unpkg.com.");
       }

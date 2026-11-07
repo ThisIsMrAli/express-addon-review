@@ -2,12 +2,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { ADOBE_RULES, adobeActive } from "./adobe.mjs";
 import { CUSTOM_RULES } from "./custom.mjs";
+import { TOOL_RULES } from "./tool.mjs";
 import { detectDesign } from "./design.mjs";
 import { HUMAN_CHECKS } from "./human.mjs";
 import { imageSize } from "./images.mjs";
 import { loadLive } from "./live.mjs";
+import { describePackage, findPackages } from "./package.mjs";
+import { blankComments, MARKUP_EXT } from "./source.mjs";
 
-const TEXT_EXT = new Set([".html", ".htm", ".js", ".jsx", ".ts", ".tsx", ".md", ".json", ".css", ".vue", ".svelte"]);
+const TEXT_EXT = new Set([".html", ".htm", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".mts", ".cts", ".md", ".json", ".css", ".vue", ".svelte"]);
 const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg"]);
 const SKIP = new Set(["node_modules", ".git", "dist", "build", "coverage", "review-output"]);
 
@@ -19,11 +22,12 @@ export function scanAddon(root, options = {}) {
   const skipped = [];
   const files = [];
   const images = [];
-  if (fs.existsSync(dir)) walk(dir, dir, files, images);
+  const newest = { rel: "", mtimeMs: 0 };
+  if (fs.existsSync(dir)) walk(dir, dir, files, images, newest);
   if (dir !== given) {
     for (const folder of ["listing", "thumbnails"]) {
       const extra = path.join(given, folder);
-      if (fs.existsSync(extra)) walk(extra, given, files, images);
+      if (fs.existsSync(extra)) walk(extra, given, files, images, newest);
     }
   }
 
@@ -41,10 +45,13 @@ export function scanAddon(root, options = {}) {
     return finish(findings, skipped, false);
   }
 
+  const zips = [...new Set([...findPackages(given), ...(options.zips || []).map((zip) => path.resolve(zip))])];
   const ctx = {
     manifest,
     files,
     images,
+    packages: zips.map(describePackage),
+    newest,
     exists: (rel) => fs.existsSync(path.join(dir, rel)),
     entryHtml: () => (manifest.entryPoints || []).find((entry) => entry.main)?.main || "index.html"
   };
@@ -59,6 +66,11 @@ export function scanAddon(root, options = {}) {
   for (const rule of CUSTOM_RULES) {
     rule.run(bind(ctx, findings, rule, "review-pattern"));
   }
+
+  for (const rule of TOOL_RULES) {
+    rule.run(bind(ctx, findings, rule, "tool"));
+  }
+  dropSuperseded(findings, CUSTOM_RULES);
 
   const humanChecks = HUMAN_CHECKS.map((check) => ({ ...check }));
   if (!images.some((image) => /(^|\/)(listing|assets)\//.test(image.rel)) && !files.some((file) => /(^|\/)(listing|assets)\//.test(file.rel))) {
@@ -75,8 +87,18 @@ export function scanAddon(root, options = {}) {
   };
 }
 
+/** A custom rule may name a stricter Adobe rule that already covers the same line. */
+function dropSuperseded(findings, customRules) {
+  const superseded = new Map(customRules.filter((rule) => rule.supersededBy).map((rule) => [rule.id, rule.supersededBy]));
+  if (!superseded.size) return;
+  for (let i = findings.length - 1; i >= 0; i -= 1) {
+    const by = superseded.get(findings[i].id);
+    if (by && findings.some((other) => other.id === by && other.file === findings[i].file && other.line === findings[i].line)) findings.splice(i, 1);
+  }
+}
+
 function detectAccess(files) {
-  const file = files.find((entry) => !/\.json$/i.test(entry.rel) && /license[_-]?key|gumroad|purchaseCode|\bsignIn\b|sign-in|\blogIn\b|I have a key|Get a license/i.test(entry.text));
+  const file = files.find((entry) => MARKUP_EXT.test(entry.rel) && /license[_-]?key|gumroad|purchaseCode|\bsignIn\b|sign-in|\blogIn\b|I have a key|Get a license/i.test(entry.code));
   return { needsCredential: Boolean(file), file: file?.rel || "" };
 }
 
@@ -208,23 +230,43 @@ function generatedSource(rel, text) {
   return line.length > 2000;
 }
 
-function walk(dir, root, files, images) {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+const MAX_TEXT_BYTES = 2 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
+
+/** One unreadable folder or file must not stop a review. It is skipped, and the rest is still read. */
+function walk(dir, root, files, images, newest) {
+  let entries = [];
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
     if (entry.isSymbolicLink() || SKIP.has(entry.name)) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      walk(full, root, files, images);
+      walk(full, root, files, images, newest);
       continue;
     }
-    const rel = path.relative(root, full);
+    const rel = path.relative(root, full).split(path.sep).join("/");
     const ext = path.extname(entry.name).toLowerCase();
-    if (TEXT_EXT.has(ext)) {
-      const text = fs.readFileSync(full, "utf8");
-      if (generatedSource(rel, text)) continue;
-      files.push({ rel, text, lines: text.split("\n") });
-    } else if (IMAGE_EXT.has(ext)) {
-      const buf = fs.readFileSync(full);
-      images.push({ rel, size: imageSize(buf) });
+    try {
+      const stat = fs.statSync(full);
+      if (TEXT_EXT.has(ext)) {
+        if (stat.size > MAX_TEXT_BYTES) continue;
+        const text = fs.readFileSync(full, "utf8");
+        if (generatedSource(rel, text)) continue;
+        const code = blankComments(text);
+        files.push({ rel, text, lines: text.split("\n"), code, codeLines: code.split("\n") });
+        if ((MARKUP_EXT.test(rel) || /\.css$/i.test(rel) || /(^|\/)manifest\.json$/.test(rel)) && stat.mtimeMs > newest.mtimeMs) {
+          Object.assign(newest, { rel, mtimeMs: stat.mtimeMs });
+        }
+      } else if (IMAGE_EXT.has(ext)) {
+        if (stat.size > MAX_IMAGE_BYTES) continue;
+        images.push({ rel, size: imageSize(fs.readFileSync(full)) });
+      }
+    } catch {
+      // Unreadable or removed while scanning.
     }
   }
 }

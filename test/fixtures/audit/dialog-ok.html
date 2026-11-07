@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><title>A dialog that is right</title>
+<style>
+  body { margin: 0; font: 14px system-ui; background: #fff; color: #1b1b1b; }
+  .underlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); }
+  [role=dialog] { position: fixed; left: 24px; right: 24px; top: 60px; background: #f8f8f8; border-radius: 8px; padding: 16px 24px 24px; }
+  header { display: flex; justify-content: space-between; align-items: center; }
+  h2 { margin: 0; font-size: 18px; }
+  .dismiss { width: 32px; height: 32px; border: 0; background: none; font-size: 20px; }
+  .buttons { display: flex; gap: 8px; margin-top: 12px; }
+  .buttons button { height: 36px; flex: 1; }
+</style>
+<div class="underlay"></div>
+<section role="dialog" aria-label="Rename">
+  <header><h2>Rename</h2><button class="dismiss" aria-label="Close">×</button></header>
+  <p>Give it a short name.</p>
+  <div class="buttons"><button>Cancel</button><button>Save</button></div>
+</section>

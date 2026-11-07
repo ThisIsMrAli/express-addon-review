@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>A dialog that stays at opacity 0 still takes every click</title>
+<style>
+  body { margin: 0; padding: 12px; font: 14px system-ui; color: #111; background: #fff; }
+  button { display: block; width: 100%; height: 36px; margin: 0 0 8px; }
+  .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0); display: flex; align-items: center; justify-content: center; }
+  .card { opacity: 0; width: 240px; padding: 16px; background: #fff; border: 1px solid #333; }
+</style>
+<button>Search icons</button><button>Free</button><button>Paid</button><button>Insert size</button>
+<div class="scrim">
+  <div class="card" role="dialog" aria-modal="true" aria-label="Unlock the library">
+    <button aria-label="Close" style="width: 32px">x</button>
+    <p>A license opens paid icons.</p>
+  </div>
+</div>

@@ -1,0 +1,73 @@
+<!doctype html><meta charset="utf-8"><title>Fixture add-on</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { color-scheme: light dark; --bg: #fff; --fg: #1b1b1b; --muted: #5a5a5a; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #1b1b1b; --fg: #f1f1f1; --muted: #4a4a4a; } }
+  body { margin: 0; padding: 16px; font: 14px system-ui; background: var(--bg); color: var(--fg); }
+  h1 { font-size: 18px; margin: 0 0 8px; }
+  p.muted { color: var(--muted); }
+  .row { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  button { min-height: 40px; border-radius: 20px; border: 2px solid #4044c9; background: transparent; color: var(--fg); font: 600 14px system-ui; }
+  .tiny { min-height: 0; height: 18px; width: 18px; padding: 0; border-radius: 3px; }
+  .tinies { display: flex; gap: 2px; margin-top: 12px; }
+  .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.45); }
+  [role=dialog] { position: fixed; left: 20px; right: 20px; top: 50px; background: var(--bg); border: 1px solid #888; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+  [role=dialog] .actions { display: flex; flex-direction: column; gap: 8px; }
+  input { height: 36px; font: 14px system-ui; padding: 0 8px; }
+  .error { color: #b00020; }
+  header { display: flex; justify-content: space-between; align-items: center; }
+  header h2 { margin: 0; }
+  .x { min-height: 0; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 16px; font-size: 20px; }
+</style>
+<div id="app"></div>
+<script>
+  const app = document.getElementById("app");
+  const params = new URLSearchParams(location.search);
+  const state = { view: "home", dialog: null, unlocked: false, message: "" };
+  const fixed = params.get("fixed") === "1";
+  const head = (title, id) => `<header><h2>${title}</h2>${fixed ? `<button id="${id}" class="x" aria-label="Close">×</button>` : ""}</header>`;
+  const bottomClose = (id) => (fixed ? "" : `<button id="${id}">Close</button>`);
+
+  function render() {
+    let page = "";
+    if (state.view === "home") {
+      page = `<h1>Fixture add-on</h1><p class="muted">Pick something to do.</p>
+        <div class="row">
+          <button id="guide">Open guide</button>
+          <button id="upgrade">Upgrade</button>
+          <button id="wipe">Delete everything</button>
+          <a href="https://example.com/help" target="_blank">Help center</a>
+          ${state.unlocked ? '<button id="pro">Pro tools</button>' : ""}
+        </div>`;
+    } else if (state.view === "pro") {
+      page = `<h1>Pro tools</h1><div class="tinies"><button class="tiny" aria-label="A">A</button><button class="tiny" aria-label="B">B</button></div><div class="row"><button id="back">Back</button></div>`;
+    }
+    let dialog = "";
+    if (state.dialog === "guide") {
+      dialog = `<div class="scrim"></div><section role="dialog" aria-label="Welcome guide">${head("Welcome guide", "dismiss")}<p>Three steps to start.</p>
+        <div class="actions"><button id="start">Start designing</button>${bottomClose("dismiss")}</div></section>`;
+    } else if (state.dialog === "upgrade") {
+      dialog = `<div class="scrim"></div><section role="dialog" aria-label="Upgrade">${head("Upgrade", "close")}
+        <label for="key">License key</label><input id="key" placeholder="License key" autocomplete="off">
+        <div class="error" role="alert">${state.message}</div>
+        <div class="actions"><button id="activate">Activate</button>${bottomClose("close")}</div></section>`;
+    }
+    app.innerHTML = page + dialog;
+  }
+  document.addEventListener("click", (event) => {
+    const id = event.target.closest("button")?.id;
+    if (id === "guide") state.dialog = "guide";
+    else if (id === "upgrade") { state.dialog = "upgrade"; state.message = ""; }
+    else if (id === "dismiss" || id === "close" || id === "start") state.dialog = null;
+    else if (id === "wipe") fetch("/deleted");
+    else if (id === "pro") state.view = "pro";
+    else if (id === "back") state.view = "home";
+    else if (id === "activate") {
+      const key = document.getElementById("key").value;
+      if (key === "GOOD-KEY") { state.unlocked = true; state.dialog = null; }
+      else state.message = "That license is not valid.";
+    } else return;
+    render();
+  });
+  render();
+</script>

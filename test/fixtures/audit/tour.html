@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>A welcome tour in front of the panel</title>
+<style>
+  body { font: 14px system-ui; margin: 0; padding: 12px; color: #111; background: #fff; }
+  .dlg { position: fixed; left: 12px; right: 12px; top: 80px; background: #fff; border: 1px solid #333; padding: 12px; }
+  button { height: 32px; min-width: 80px; }
+</style>
+<div id="app"></div>
+<script>
+  const app = document.getElementById("app");
+  function home() {
+    app.innerHTML = '<h1>Library</h1><button id="s">Settings</button> <button id="h">Help</button><div id="out"></div>';
+    document.getElementById("s").onclick = () => { document.getElementById("out").innerHTML = "<p>Settings panel</p>"; };
+    document.getElementById("h").onclick = () => { document.getElementById("out").innerHTML = "<p>Help page</p>"; };
+  }
+  function tour(step) {
+    const steps = ["Welcome", "Pick a pack", "All set"];
+    const last = step === steps.length - 1;
+    app.innerHTML = '<h1>Library</h1><div class="dlg" role="dialog" aria-label="Tour"><h2>' + steps[step] + '</h2><button id="n">' + (last ? "Start designing" : "Next") + "</button></div>";
+    document.getElementById("n").onclick = () => { if (last) { localStorage.setItem("toured", "1"); home(); } else tour(step + 1); };
+  }
+  if (localStorage.getItem("toured")) home(); else tour(0);
+</script>

@@ -1,14 +1,47 @@
 # Marketplace screenshots
 
-The listing question asks this. Do not ask it during Review or Fix, and do not start until the answer is yes:
+The `listing` question asks this. Do not start before the answer is yes, and do not ask it during Review or Fix:
 
-> Write the marketplace listing? I will draft the name, summary, description, and keywords from the manifest, the package description, and the visible panel, and I will make the 1360×800 screenshots. I will not copy index.html keywords.
+> Write the marketplace listing? I will draft the name, summary, description, and keywords from the manifest, the package description, and the visible panel, and I can make the 1360×800 screenshots from the skill template. I will not copy index.html keywords.
 
-If they say no, do not create `thumbnails/`.
+The shots are built in the review folder first. Nothing is written into the add-on until the user approves them (`shots-review`). If they say no to the whole listing, do not create `thumbnails/`.
 
 These files fill `screenshot-details` on the public listing. The rule is the fresh [public distribution](https://developer.adobe.com/express/add-ons/docs/guides/build/distribute/public-dist) page: one screenshot required, five maximum, each exactly **1360×800**, JPEG or PNG. This procedure writes PNG. The **144×144** icon is a different upload. Adobe resizes it. Do not make 36 or 64 copies.
 
-The look is the same for every add-on. Type on the left. Real panels on the right. Soft off-white field, cyan-teal accent, white cards with a shadow and a slight turn. What changes is the add-on’s own words and its own screens.
+## Locked look
+
+The look is the same for every add-on. Type on the **left**. Real panels on the **right**. Soft off-white field, cyan-teal accent, white cards with a shadow and a slight turn. What changes is the add-on’s own words and its own screens.
+
+Do not invent a layout. Do not write a new stylesheet. Do not revive an old `shot.css`, type-right layout, `eyebrow` / `accent` / `names` freestyle, or an image-model banner. Those are the bad screenshots.
+
+## Prepare the folder first
+
+Always start from the skill templates:
+
+```bash
+node scripts/prepare-listing.mjs
+```
+
+It works in the review folder's `listing/` directory. That command copies `listing-shot.css` and writes `01-cover.html`, `02-feature.html`, and `03-path.html` from [listing-shot.html](listing-shot.html). It deletes stray freelanced stylesheets in that folder.
+
+You may edit only:
+
+- the kicker text
+- the `h1` text
+- the sentence
+- the pills
+- each `img` `src`
+- whether the optional `.float-star` image stays or is removed
+
+You may not:
+
+- change the DOM structure or class names
+- move type to the right or panels to the left
+- replace `listing-shot.css`
+- add `eyebrow`, `line`, `accent`, `names`, or other freelanced classes
+- send a full banner prompt to an image model
+
+If a previous run left bad HTML in the listing folder, run `prepare-listing.mjs` again and start over from the locked files.
 
 ## Words, taken from the add-on
 
@@ -40,16 +73,9 @@ Do not open Adobe Express. Open the `document` URL from `views.json`. That page 
 3. Save one file per screen you will show. Home, the feature screen, and the path screen are the usual three. Dismiss a dialog only when it covers the screen you need.
 4. Never redraw the panel, and never paint over a wrong name. Retake it.
 
-## Build the page
+## Fill the prepared pages
 
-Copy these two files from the skill, do not invent a layout:
-
-- `references/listing-shot.html`
-- `references/listing-shot.css`
-
-The absolute skill copies are next to this file. Type stays on the left. Real panels stay on the right. Soft off-white field, cyan-teal accent, white cards. Do not put the panels on the left. Do not build a 2×2 fact-card grid. Do not paint a plugin window. Do not start from a blank HTML page.
-
-Copy the pair once per screenshot. Set `data-shot`:
+Open the files `prepare-listing.mjs` wrote. Each already has its `data-shot` set:
 
 - `cover`. Two cards, back and front. The main screen behind, a second real screen in front.
 - `feature`. One card, the screen that is hard to see from home.
@@ -77,21 +103,30 @@ These prompts are for the object only. Do not send a banner prompt to an image m
 
 ## Render and fit
 
-Screenshot the HTML at **1920×1280**, device scale **1**, no scrollbars.
+All of this happens in the review folder's `listing/` directory. `node scripts/session.mjs show` prints the review folder.
+
+One command renders every prepared page and fits it:
 
 ```bash
-chrome --headless --disable-gpu --hide-scrollbars --force-device-scale-factor=1 --window-size=1920,1280 --default-background-color=FFF8F9FA --screenshot=review-output/listing/01-raw.png file:///absolute/path/to/shot.html
+node scripts/render-listing.mjs
 ```
 
-On macOS the binary is often `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`. If the shot is not 1920×1280, retake it. Do not stretch it.
+It works on macOS, Windows, and Linux. It finds Chrome, Edge, or Chromium on its own (set `CHROME_PATH` to use another), renders each page at **1920×1280**, then scales to width 1360 and center-crops the height to 800. On macOS the crop uses `sips`. Elsewhere Chrome does it. Pass `--only 01-cover` to redo one page and `--engine chrome` to force the browser crop.
 
-```bash
-node scripts/fit-listing-shot.mjs --input review-output/listing/01-raw.png --out /absolute/path/to/addon/thumbnails/01-cover.png
-```
+Before it starts a browser, it checks each page against the locked template and stops with a list of problems when any of these is true. Fix them and run it again.
 
-The script scales to width 1360, then center-crops the height to 800. `sips` takes the crop offset as vertical, then horizontal. The script already does that. Width must be 1360 and height must be 800.
+- `listing-shot.css` is missing or was changed.
+- The page has a `<style>` tag, a `style` attribute, a script, or another stylesheet.
+- A class is used that the stylesheet does not define.
+- `.copy` comes after `.stage`, so the type is not on the left.
+- The kicker, headline, sentence, or a pill still says what the template said ("Short phrase from the UI", "Fact").
+- An `img` is not a local file, or the file does not exist. Remove a card you do not use.
 
-Write `thumbnails/01-….png` through `05-….png` in the add-on project. Make three. Stop at five.
+It then compares the kicker, headline, sentence, and each pill with the add-on's source (`--input <add-on>` if the review did not record it). A phrase it cannot find comes back as a `warnings` entry. A count you worked out from the data is fine when you can say how. Replace anything else.
+
+Do not run Chrome by hand. Do not stretch a page that comes out the wrong size. The command fails instead.
+
+Make `final/01-cover.png`, `final/02-feature.png`, `final/03-path.png`. Stop at five.
 
 1. Cover. The main screen, plus one more screen, and the promise. Adobe shows this one largest.
 2. The feature that is hard to see in one panel shot.
@@ -109,6 +144,26 @@ Rebuild it when any of these are true:
 - A word on the image is not in the add-on.
 - An object still has a gray rectangle, or it covers a word or a button.
 - The file is not 1360×800.
+- The type is on the right, or the HTML/CSS was freelanced instead of prepared from the skill template.
+
+## Show them, then write
+
+Open every final PNG yourself first, and rebuild any that fail the list above. Then ask the user.
+
+Dashboard mode. The images appear inside the decision, at full width, with their sizes:
+
+```bash
+node scripts/session.mjs ask --id shots-review --image <listing>/final/01-cover.png --image <listing>/final/02-feature.png --image <listing>/final/03-path.png
+node scripts/session.mjs wait --id shots-review
+```
+
+Chat mode. Show each PNG in chat as an image, then call AskQuestion with the `shots-review` object and record the click with `session.mjs answer --id shots-review --value <option id>`.
+
+- `approve`. Copy the files from `<listing>/final/` into the add-on's `thumbnails/` folder, keeping the names. Create the folder if it is missing. Run `review.mjs --rescan` and confirm `listing-screenshot` does not fire.
+- `redo`. Run `prepare-listing.mjs` again and start over from the locked files. Do not patch the old HTML.
+- `skip`. Write nothing. The previews stay in the review folder.
+
+The listing text has the same shape. Put the draft on the session with `session.mjs listing --json listing.json`, ask `listing-review`, and save it only after `approve`. Nothing is ever submitted to Adobe for the user.
 
 ## Words that get a listing rejected
 

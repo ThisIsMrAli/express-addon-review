@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"><title>Dialog with the close button at the bottom</title>
+<style>
+  body { margin: 0; font: 14px system-ui; background: #fff; color: #1b1b1b; }
+  .underlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); }
+  /* The shape React Spectrum gives a dismissible Dialog next to a vertical ButtonGroup at panel width. */
+  [role=dialog] { position: fixed; left: 24px; right: 24px; top: 60px; background: #f8f8f8; border-radius: 8px; padding: 24px; display: grid; grid-template-columns: 1fr; gap: 12px; }
+  h2 { margin: 0; font-size: 18px; }
+  .buttons { display: flex; flex-direction: column; gap: 8px; }
+  .buttons button { height: 40px; border-radius: 20px; border: 2px solid #4044c9; background: #fff; font: 600 14px system-ui; }
+  .buttons .primary { background: #4044c9; color: #fff; }
+  .dismiss { width: 32px; height: 32px; border: 0; background: none; font-size: 20px; }
+</style>
+<div class="underlay"></div>
+<section role="dialog" aria-label="Welcome to Auto Icon">
+  <h2>Welcome to Auto Icon</h2>
+  <p>Pick a material and a motion. Place a still PNG on the canvas.</p>
+  <div class="buttons"><button>Back</button><button class="primary">Start designing</button></div>
+  <button class="dismiss" aria-label="Dismiss">×</button>
+</section>

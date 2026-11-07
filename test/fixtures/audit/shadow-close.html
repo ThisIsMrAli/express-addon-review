@@ -1,0 +1,8 @@
+<!doctype html><meta charset="utf-8"><title>Close button inside a shadow root, at the bottom</title>
+<style> body { margin: 0; font: 14px system-ui; } [role=dialog] { position: fixed; left: 24px; right: 24px; top: 60px; background: #f4f4f4; padding: 24px; height: 220px; } </style>
+<section role="dialog" aria-label="Shadow"><h2>Shadow</h2><p>Body</p><my-close style="position:absolute;bottom:12px;right:12px"></my-close></section>
+<script>
+  customElements.define("my-close", class extends HTMLElement {
+    constructor() { super(); this.attachShadow({ mode: "open" }).innerHTML = '<button aria-label="Close" style="width:32px;height:32px">×</button>'; }
+  });
+</script>
