@@ -73,7 +73,7 @@ Keep the 320px captures. They are the panel images inside a listing screenshot. 
 
 ## 5. Fix, then look again
 
-Each thing you saw is its own question: "Fix this?" Wait. Do not edit until they say yes to that one.
+List every panel issue in one message. Then ask once: Fix all panel issues (Recommended), Leave the panel issues for later, or Stop. Do not ask once per control. Do not edit until they pick Fix all panel issues.
 
 When they do:
 

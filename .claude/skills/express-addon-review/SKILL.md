@@ -2,12 +2,12 @@
 name: express-addon-review
 description: >-
   Reviews an Adobe Express add-on. Shows the code findings, opens the panel
-  at 320px, and walks the screens. Then calls AskQuestion: one selection
-  box, recommended option first. Fix a finding, apply the design guidelines,
-  or write the listing and 1360×800 screenshots. Uses the docs already on
-  disk. index.html keywords are code, not the listing. Use when the user
-  mentions an Adobe Express add-on, marketplace review, Express branding,
-  publishing an Express add-on, or listing screenshots.
+  at 320px, and walks the screens. Then calls AskQuestion for the big choices
+  only: credentials, fix everything in this step, design, listing. Recommended
+  option first. Listing screenshots must copy the skill template. Uses the
+  docs already on disk. index.html keywords are code, not the listing. Use
+  when the user mentions an Adobe Express add-on, marketplace review, Express
+  branding, publishing an Express add-on, or listing screenshots.
 license: MIT
 compatibility: Requires Node.js 18 or newer. Uses the Node standard library. pdftotext extracts the brand PDF when it is installed.
 ---
@@ -32,17 +32,19 @@ Do not type the next step as a paragraph. A reply that ends with a question mark
 
 Every fixed choice uses the AskQuestion tool. One question in that turn. If the tool is missing, ask the same choices in one sentence.
 
-`questions.json` holds the code, license, design, and listing selections. Pass one object's `prompt` and `options` through unchanged. `title` is `Next step`. The first option is the suggestion and already ends with `(Recommended)`.
+Ask only the big choices: credentials, fix this step, design, and listing. Do not ask one box per bug. Show the findings first so the user can see the files and the edits. The Fix step can clear all of them.
+
+`questions.json` holds those selections. Pass one object's `prompt` and `options` through unchanged. `title` is `Next step`. The first option is the suggestion and already ends with `(Recommended)`.
 
 When a license field, a login, or a lock appears, call AskQuestion with the `credentials` object before you open that paid screen. If they choose "I will type the test license or login", their next message is the secret. Use it only in the panel. Do not write it into the repo, the report, or a commit. If they skip, do not open the paid screens.
 
-After the walk, a problem you saw is also an AskQuestion, before the design question. The options are only:
+After the walk, list every panel issue in the same message. Then call AskQuestion once for that step:
 
-- `yes`: Fix this (Recommended)
-- `skip`: Skip this one
+- `all`: Fix all panel issues (Recommended)
+- `skip`: Leave the panel issues for later
 - `stop`: Stop
 
-The prompt is one sentence naming the control and the fix. Do not write that sentence as the only question in the chat.
+Do not ask once per control.
 
 Do not refresh the docs when `references/live/summary.json` exists. Use that revision. Run `refresh-docs.mjs` only when that file is missing, or when the user asks for a refresh.
 
@@ -68,21 +70,22 @@ node scripts/review.mjs --input /absolute/path/to/addon --no-refresh
 
 5. The first time a screen is locked or asks for a license or login, call AskQuestion with the `credentials` object. Wait. Then continue or skip the paid screens as they chose.
 
-6. After the walk, call AskQuestion once. A visual problem uses Fix this (Recommended), Skip this one, and Stop. Otherwise use the first unanswered object in `questions.json`. Do not type the question as a paragraph.
+6. After the walk, list every panel issue in that message. Then call AskQuestion once. Prefer the first unanswered object in `questions.json`. A panel-only step uses Fix all panel issues (Recommended), Leave the panel issues for later, and Stop.
 
 7. Follow [references/session.md](references/session.md) for the selected option.
 
-- **Fix this** or **Fix all remaining code errors**: edit that suggestion, scan again with `--no-refresh`, and reload that screen. Continue only when it is gone, then call AskQuestion with the next object.
-- **Go through them**: one finding, then the next, each as its own AskQuestion with Fix this (Recommended), Skip this one, and Stop.
+- **Fix everything in this step**: apply every open finding listed in that turn, scan again with `--no-refresh`, and reload the screens that changed. Continue only when those ids are gone.
+- **Fix only the code errors**: apply the errors only.
+- **Fix all panel issues**: apply every visual problem named in that turn. Do not ask once per control.
 - **Move**, **Review**, or **Add**: follow [references/spectrum.md](references/spectrum.md). Do not restyle until this selection.
 - **Leave the UI as it is**: do not restyle.
-- **Write the listing text and the screenshots**: [references/submission.md](references/submission.md) one section at a time, and [references/listing-shots.md](references/listing-shots.md). Do not copy `index.html` keywords.
+- **Write the listing text and the screenshots**: [references/submission.md](references/submission.md) one section at a time, and [references/listing-shots.md](references/listing-shots.md). Copy the skill template files. Do not invent a layout. Do not copy `index.html` keywords.
 - **Screenshots only** or **Listing text only**: do that part.
-- **Skip**, **Not now**, or **Stop**: leave that item open.
+- **Skip**, **Leave for later**, **Not now**, or **Stop**: leave that item open.
 
-7. If the live text and a remembered rule disagree, follow the live text.
+8. If the live text and a remembered rule disagree, follow the live text.
 
-8. Close with the lines in [references/session.md](references/session.md). A finished session is not marketplace approval.
+9. Close with the lines in [references/session.md](references/session.md). A finished session is not marketplace approval.
 
 ## Read next
 

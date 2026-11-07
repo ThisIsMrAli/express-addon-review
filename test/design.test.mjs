@@ -23,6 +23,6 @@ test("a mixed React add-on is asked to move React Spectrum, not restyle first", 
   const text = planQuestions({ findings: [], design });
   assert.match(text, /uses both swc-react and React Spectrum/);
   assert.match(text, /Move the React Spectrum controls to swc-react \(Recommended\)/);
-  assert.match(text, /will not restyle anything until you say yes/);
+  assert.match(text, /Do not restyle anything until the design choice says yes/);
   assert.match(text, /Tailwind is also installed/);
 });

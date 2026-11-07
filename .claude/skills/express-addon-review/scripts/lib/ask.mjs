@@ -8,42 +8,8 @@ export function planAsks(report) {
   const warnings = product.filter((finding) => finding.severity === "warn" && finding.source?.kind !== "review-pattern");
   const patterns = product.filter((finding) => finding.source?.kind === "review-pattern");
   const questions = [];
-  errors.forEach((finding, index) => {
-    const options = [
-      { id: "yes", label: "Fix this (Recommended)" },
-      { id: "skip", label: "Skip this one" }
-    ];
-    if (errors.length > 1 && index === 0) options.push({ id: "all", label: "Fix all remaining code errors" });
-    options.push({ id: "stop", label: "Stop" });
-    questions.push({
-      id: `fix-${finding.id}-${finding.line}`,
-      prompt: `Fix \`${finding.id}\` in ${finding.file}:${finding.line}? ${brief(finding.suggestion)}`,
-      options
-    });
-  });
-  if (warnings.length) {
-    questions.push({
-      id: "warnings",
-      prompt: `Go through the ${warnings.length} warning${warnings.length === 1 ? "" : "s"} one by one?`,
-      options: [
-        { id: "yes", label: "Go through them (Recommended)" },
-        { id: "skip", label: "Skip the warnings" },
-        { id: "stop", label: "Stop" }
-      ]
-    });
-  }
-  if (patterns.length) {
-    questions.push({
-      id: "patterns",
-      prompt: `Go through the ${patterns.length} review pattern${patterns.length === 1 ? "" : "s"}? These are marketplace letters, not Adobe sentences.`,
-      options: [
-        { id: "yes", label: "Go through them (Recommended)" },
-        { id: "skip", label: "Skip the review patterns" },
-        { id: "stop", label: "Stop" }
-      ]
-    });
-  }
   if (report.access?.needsCredential) questions.push(credentialAsk(report.access));
+  if (errors.length || warnings.length || patterns.length) questions.push(fixAsk(errors, warnings, patterns));
   questions.push(designAsk(report.design));
   questions.push(listingAsk(listing));
   return questions;
@@ -52,9 +18,11 @@ export function planAsks(report) {
 export function planQuestions(report) {
   const questions = planAsks(report);
   const lines = [
-    "Open the panel at 320px and walk the screens before the first question. Do not ask permission.",
-    "Then call AskQuestion with the first object below. One call. Do not type the question as a paragraph.",
+    "Show the findings first so the user knows what is open.",
+    "Open the panel at 320px and walk the screens. Do not ask permission.",
+    "Call AskQuestion only for the big choices below. One call. Do not ask one box per bug.",
     "The first option is the suggestion. Pass the options through unchanged.",
+    "Do not restyle anything until the design choice says yes.",
     ""
   ];
   questions.forEach((question, index) => {
@@ -63,6 +31,43 @@ export function planQuestions(report) {
     lines.push("");
   });
   return lines.join("\n");
+}
+
+function fixAsk(errors, warnings, patterns) {
+  const parts = [];
+  if (errors.length) parts.push(`${errors.length} code error${errors.length === 1 ? "" : "s"}`);
+  if (warnings.length) parts.push(`${warnings.length} warning${warnings.length === 1 ? "" : "s"}`);
+  if (patterns.length) parts.push(`${patterns.length} review pattern${patterns.length === 1 ? "" : "s"}`);
+  const summary = parts.join(", ");
+  const options = [
+    { id: "all", label: "Fix everything in this step (Recommended)" }
+  ];
+  if (errors.length && (warnings.length || patterns.length)) {
+    options.push({ id: "errors", label: "Fix only the code errors" });
+  }
+  options.push(
+    { id: "skip", label: "Leave the findings for later" },
+    { id: "stop", label: "Stop" }
+  );
+  return {
+    id: "fix",
+    prompt: `I found ${summary}. They are listed above with the file and the edit. Fix them now?`,
+    options,
+    items: {
+      errors: errors.map(briefFinding),
+      warnings: warnings.map(briefFinding),
+      patterns: patterns.map(briefFinding)
+    }
+  };
+}
+
+function briefFinding(finding) {
+  return {
+    id: finding.id,
+    file: finding.file,
+    line: finding.line,
+    suggestion: brief(finding.suggestion)
+  };
 }
 
 function credentialAsk(access) {
@@ -86,7 +91,7 @@ function designAsk(design) {
   if (libraries.includes("swc-react") && libraries.includes("react-spectrum")) {
     return {
       id: "design",
-      prompt: `This add-on uses both swc-react and React Spectrum. ${theme} The fresh implementation guide prefers swc-react for React. I will not restyle anything until you say yes.${tailwind}`,
+      prompt: `This add-on uses both swc-react and React Spectrum. ${theme} The fresh implementation guide prefers swc-react for React.${tailwind}`,
       options: [
         { id: "move", label: "Move the React Spectrum controls to swc-react (Recommended)" },
         { id: "review", label: "Review the controls and leave both libraries" },
@@ -97,7 +102,7 @@ function designAsk(design) {
   if (libraries.includes("swc-react") || libraries.includes("spectrum-web-components")) {
     return {
       id: "design",
-      prompt: `This add-on already uses ${libraries.join(" and ") || "Spectrum"}. ${theme} I will not restyle anything until you say yes.${tailwind}`,
+      prompt: `This add-on already uses ${libraries.join(" and ") || "Spectrum"}. ${theme}${tailwind}`,
       options: [
         { id: "review", label: "Review the controls against the Express design guidelines (Recommended)" },
         leave
@@ -107,7 +112,7 @@ function designAsk(design) {
   if (libraries.includes("react-spectrum")) {
     return {
       id: "design",
-      prompt: `This add-on uses React Spectrum. ${theme} The fresh implementation guide prefers swc-react for a React add-on. I will not switch libraries until you say yes.${tailwind}`,
+      prompt: `This add-on uses React Spectrum. ${theme} The fresh implementation guide prefers swc-react for a React add-on.${tailwind}`,
       options: [
         { id: "move", label: "Move the controls to swc-react (Recommended)" },
         { id: "review", label: "Review the current controls against the design guidelines" },
@@ -117,7 +122,7 @@ function designAsk(design) {
   }
   return {
     id: "design",
-    prompt: `Apply Spectrum Web Components with the Express theme, and the Express design guidelines? ${theme} I will not restyle the panel until you say yes.${tailwind}`,
+    prompt: `Apply Spectrum Web Components with the Express theme? ${theme}${tailwind}`,
     options: [
       { id: "add", label: "Add Spectrum Web Components with the Express theme (Recommended)" },
       leave
@@ -129,7 +134,7 @@ function listingAsk(listing) {
   const wrong = listing.length ? ` ${listing.length} listing file${listing.length === 1 ? " is" : "s are"} the wrong size.` : "";
   return {
     id: "listing",
-    prompt: `Write the marketplace listing? I will draft the name, summary, description, and keywords from the manifest, the package description, and the visible panel, and I can make the 1360×800 screenshots. I will not copy index.html keywords.${wrong}`,
+    prompt: `Write the marketplace listing? I will draft the name, summary, description, and keywords from the manifest, the package description, and the visible panel, and I can make the 1360×800 screenshots from the skill template. I will not copy index.html keywords.${wrong}`,
     options: [
       { id: "both", label: "Write the listing text and the screenshots (Recommended)" },
       { id: "shots", label: "Screenshots only" },

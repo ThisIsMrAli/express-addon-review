@@ -42,7 +42,14 @@ Do not open Adobe Express. Open the `document` URL from `views.json`. That page 
 
 ## Build the page
 
-Copy [listing-shot.html](listing-shot.html) and [listing-shot.css](listing-shot.css) once per screenshot. Set `data-shot`:
+Copy these two files from the skill, do not invent a layout:
+
+- `references/listing-shot.html`
+- `references/listing-shot.css`
+
+The absolute skill copies are next to this file. Type stays on the left. Real panels stay on the right. Soft off-white field, cyan-teal accent, white cards. Do not put the panels on the left. Do not build a 2×2 fact-card grid. Do not paint a plugin window. Do not start from a blank HTML page.
+
+Copy the pair once per screenshot. Set `data-shot`:
 
 - `cover`. Two cards, back and front. The main screen behind, a second real screen in front.
 - `feature`. One card, the screen that is hard to see from home.
