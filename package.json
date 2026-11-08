@@ -3,7 +3,7 @@
   "version": "0.4.0",
   "private": true,
   "type": "module",
-  "description": "Check an Adobe Express add-on against the current design, brand, and publish rules.",
+  "description": "Add-on Preflight checks an Adobe Express add-on before submission: the source, the panel, and the listing.",
   "license": "MIT",
   "engines": {
     "node": ">=18"

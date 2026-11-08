@@ -1,70 +1,90 @@
-# Express add-on review
+# Add-on Preflight
 
-An agent skill that checks an Adobe Express add-on folder against the current marketplace rules. Each miss includes an edit. Adobe's sentences stay on Adobe's pages: the refresh command downloads the docs repository, and a check is skipped when that download no longer contains the sentence.
+The check you run on an Adobe Express add-on before you submit it. Point it at the add-on folder. It checks the source against Adobe’s current docs, walks the panel at 320px in light and dark, fixes the layout bugs it measures, and prepares the marketplace listing.
 
-It does not replace the marketplace review, and it does not open Adobe Express. The scanner reads the source, then the skill opens the panel at 320px and walks the screens. `index.html` keywords are not the listing.
+It does not open Adobe Express, it does not submit the add-on, and a finished review is not marketplace approval. Adobe’s sentences stay on Adobe’s pages. The refresh command downloads the docs, and a check is skipped when that download no longer contains the sentence it depends on.
 
-Invoke it in Cursor with `/express-addon-review`.
+## Requirements
 
-## How a review goes
+- Node.js 18 or newer
+- Chrome, Edge, or Chromium on the same computer, for the panel walk and the listing screenshots. Set `CHROME_PATH` to choose one. Without a browser, the review says so and continues by hand
+- `pdftotext`, optional, for the brand PDF
 
-1. The agent scans the code and writes the report.
-2. It asks once where to follow along: a **live dashboard in Chrome**, or **chat**.
-3. It opens the panel in headless Chrome at 320px, light and dark, and clicks through it (`audit.mjs`). Real layout bugs, such as a dialog whose close button sits at the bottom, are fixed at once and checked again.
-4. It asks only the big choices: a test license when a screen is locked, **fix everything found**, an optional polish pass, design, and the marketplace listing. Never one question per finding.
-5. Screenshots and listing text are shown for approval before anything is written into the add-on.
-
-The agent keeps going until the review is done. If you answer in the dashboard, it picks the answer up and continues. It does not wait for you to type in chat.
-
-If the add-on was already rejected, paste the letter. Each reason becomes a tracked note, is mapped to a check, and is verified on its own, and the skill ends with the notes to paste into the resubmission ([`references/rejection.md`](.claude/skills/express-addon-review/references/rejection.md)).
-
-## What it checks
-
-- **The code.** More than forty checks. Most are tied to a sentence in Adobe's current docs, and a few are review patterns taken from real marketplace letters. Comments are ignored, markup is read tag by tag, and a project-wide rule (Cancel, logout, validation) looks at the whole project, so a finding is a real one.
-- **The upload.** A zip in the project root is read in memory: manifest at its root, 50 MB, no hidden files, the files the manifest names, and not older than the source.
-- **The running panel.** At 320px in light and dark, with real clicks, on a throttled and offline network, and by keyboard. It finds a dialog whose close button is out of place or that has no way out, a control covered by another, clipped or overflowing text, broken images, small tap targets, low contrast, controls a keyboard cannot reach, and script or network errors. Each comes with a screenshot and a guess at the source line. It never presses Delete, Reset, Buy, or Sign out.
-- **The listing.** Screenshots from one locked template, 1360×800, using only words that are already in the add-on, rendered by `render-listing.mjs`.
-- **What a person must do.** Browsers, the publisher site, and test credentials for the reviewer are listed, not guessed.
-
-With the dashboard, the page shows what is happening now with a live timer and a progress bar, whether the agent is working, waiting for you, or quiet, the findings with their Adobe source, the 320px captures, and the decisions as buttons. The agent waits for the click and carries on. With chat, the same decisions use the agent's own question box. If the dashboard cannot start, or the agent is not on your computer, the review continues in chat.
-
-The dashboard is for the person running the review. Adobe's reviewers never see it. See [`references/dashboard.md`](.claude/skills/express-addon-review/references/dashboard.md) for the commands, the security model, and what works in which agent.
-
-Reviews are written to `~/.express-addon-review/<slug>/`, not into the add-on and not into this repo.
+macOS, Windows, and Linux.
 
 ## Install
 
-Node.js 18 or newer. `pdftotext` is used for the brand PDF when it is installed. The panel audit and the listing screenshots need Chrome, Edge, or Chromium on the same computer (set `CHROME_PATH` to choose one). Without one, the audit says so and the review continues by hand. They work on macOS, Windows, and Linux.
+From this folder:
 
 ```bash
-npx skills add <owner>/express-addon-review --skill express-addon-review -a cursor
-```
-
-This clone links the skill into Cursor, Claude, Codex, and the other agent folders:
-
-```bash
-node install-agents.mjs
 node install-agents.mjs --global
 ```
 
-## Use it
+That links the skill into the agent folders on this machine, including Claude, Cursor, Codex, Gemini, and Windsurf. Use `node install-agents.mjs` without `--global` to link it only inside this project.
 
-Agents follow [`.claude/skills/express-addon-review/SKILL.md`](.claude/skills/express-addon-review/SKILL.md). To try the pieces by hand:
+If you were sent the preview address instead of the repository, download the project from that page. The repository itself is private.
+
+## Run a review
+
+Open the add-on in an agent that has the skill and ask it to review that folder. The agent follows [`.claude/skills/express-addon-review/SKILL.md`](.claude/skills/express-addon-review/SKILL.md).
+
+To run the pieces yourself:
 
 ```bash
 npm run refresh                                   # download the current Adobe docs once
-npm run scan -- --input /path/to/addon            # print the findings as JSON
 npm run review -- --input /path/to/addon          # write the report and start a session
-npm run dashboard -- start                        # open the live dashboard in Chrome
-node .claude/skills/express-addon-review/scripts/audit.mjs   # walk the running panel at 320px
-npm run session -- show                           # steps, pending questions, answers
+npm run dashboard -- start                        # open the local dashboard in Chrome
+node .claude/skills/express-addon-review/scripts/audit.mjs
+npm run session -- show
 npm run dashboard -- stop
-npm run render-listing                            # fit the prepared listing pages to 1360×800
 npm test
 ```
 
-The report has Adobe findings with a URL, review patterns from marketplace letters, checks that were skipped because the fresh page changed, and the list a person still has to do.
+Reports are written to `~/.express-addon-review/<slug>/`, not into the add-on and not into this repository.
+
+## What a review covers
+
+**Source.** Checks tied to Adobe’s current docs, plus review patterns taken from marketplace letters. Comments are ignored, markup is read tag by tag, and a project-wide rule looks at the whole project. `index.html` keywords, the meta description, and the document title are not the listing.
+
+**Upload.** A zip in the project root is read in memory: the manifest at its root, the 50 MB limit, no hidden files, the files the manifest names, and whether the zip is older than the source.
+
+**Panel.** The panel is built and served on this computer when nothing is already running, so the walk does not need an Adobe sign-in. It opens at 320px in light and dark and presses every screen it can reach. It does not press Delete, Reset, Buy, or Sign out. Measured bugs, such as a close button at the bottom of a dialog, are fixed and checked again. Warnings wait for one decision.
+
+**Listing.** Text is drafted from the manifest, the package description, and the visible panel. Screenshots are rendered at 1360×800 from one locked template, using only words that are already in the add-on. Both are shown for approval before anything is written into the add-on.
+
+**A person.** Other browsers, a slow network, the publisher website, and test credentials are listed for you. They are not guessed. If the add-on was rejected, paste the letter. Each reason becomes a note, is checked, and is returned as text for the resubmission.
+
+The local dashboard shows the current step, a progress bar, the findings, and the 320px captures. It listens on this computer only. Adobe’s reviewers never see it. If it cannot start, the same decisions continue in chat.
+
+## What it will not do
+
+- Submit the add-on, or claim that Adobe will approve it
+- Open Adobe Express or sign in
+- Invent listing text, publisher details, or test credentials
+- Ask once per finding
+
+## Share a private preview
+
+The source repository stays private. It does not appear on a public GitHub profile, and nobody can clone it without being given access.
+
+GitHub Pages has no signature check. A private repository hides the source. It does not hide a Pages site. The preview address is an unguessable path, with an optional expiry, which is as close as Pages can come to a presigned URL:
+
+- The site root says “Not found” and does not name the project.
+- The page and the install zip exist only under that path.
+- Anyone with the address can open it until you rotate the path, or until the date passes and the next deploy removes it.
+- A daily deploy drops expired paths. `noindex` asks search engines not to list the site. That is not access control.
+
+Do not put secrets on the page, and do not post the address in public. Publishing Pages from a private repository needs GitHub Pro, Team, or Enterprise. This project is not published from a public repository.
+
+```bash
+node scripts/share-link.mjs                 # print the address and store it in Actions secrets
+node scripts/share-link.mjs --days 30       # the same, and remove the path 30 days later
+node scripts/share-link.mjs --rotate        # invalidate the current address
+node scripts/share-link.mjs --publish       # also start a deploy
+```
+
+The address is written to `.share/link.json` on this computer and to Actions secrets. `.share/` is not committed. The command refuses to continue when the repository is not private.
 
 ## License
 
-MIT
+[MIT](LICENSE)

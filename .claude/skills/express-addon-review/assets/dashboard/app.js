@@ -286,7 +286,7 @@ function paintTop() {
   const fetched = s?.addon?.fetchedAt || r.fetchedAt;
   const when = fetched ? new Date(fetched).toLocaleDateString([], { month: "short", day: "numeric" }) : "";
   region(el.who, JSON.stringify([s?.addon?.name, r.addon, s?.addon?.path]), () => [
-    h("h1", { text: s?.addon?.name || r.addon || "Express add-on review" }),
+    h("h1", { text: s?.addon?.name || r.addon || "Add-on Preflight" }),
     h("p", { class: "path", text: s?.addon?.path || "Waiting for a review to start" })
   ]);
   const conn = { live: ["ok", "Live", true], retry: ["warn", "Reconnecting"], down: ["bad", "Dashboard stopped"] }[ui.conn];

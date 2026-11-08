@@ -1,6 +1,6 @@
 {
   "name": "express-addon-review",
-  "displayName": "Express Add-on Review",
+  "displayName": "Add-on Preflight",
   "description": "Reviews an Adobe Express add-on against Adobe's current docs before submission: scans the code, walks the panel at 320px in light and dark, fixes what it finds, and prepares the listing screenshots. Follow along on a live local dashboard or in chat.",
   "version": "0.4.0",
   "author": "express-addon-review",

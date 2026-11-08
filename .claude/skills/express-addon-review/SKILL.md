@@ -14,7 +14,7 @@ license: MIT
 compatibility: Requires Node.js 18 or newer. The panel walk and the listing screenshots need Chrome, Edge, or Chromium (set CHROME_PATH to choose one). The dashboard needs a browser on the same computer and falls back to chat when it cannot start. pdftotext extracts the brand PDF when it is installed.
 ---
 
-# Express add-on review
+# Add-on Preflight
 
 Review one Adobe Express add-on directory. Change it only for what this page says to change.
 
