@@ -1,4 +1,4 @@
-# Add-on Preflight
+# Express Add-on Review
 
 The check you run on an Adobe Express add-on before you submit it. Point it at the add-on folder. It checks the source against Adobe’s current docs, walks the panel at 320px in light and dark, fixes the layout bugs it measures, and prepares the marketplace listing.
 
@@ -26,7 +26,7 @@ If you were sent the preview address instead of the repository, download the pro
 
 ## Run a review
 
-Open the add-on in an agent that has the skill and ask it to review that folder. The agent follows [`.claude/skills/express-addon-review/SKILL.md`](.claude/skills/express-addon-review/SKILL.md).
+On this computer, after the install above, open Cursor in any folder and ask it to run Express Add-on Review on the add-on path. You can also type `/express-addon-review`. The agent follows [`.claude/skills/express-addon-review/SKILL.md`](.claude/skills/express-addon-review/SKILL.md). The review stays on this machine: the dashboard is a localhost page, and the panel is built and served here. It does not need an Adobe sign-in.
 
 To run the pieces yourself:
 

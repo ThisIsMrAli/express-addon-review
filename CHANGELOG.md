@@ -2,6 +2,7 @@
 
 ## 0.4.0
 
+- **The name is Express Add-on Review.** The skill id stays `express-addon-review`, so in Cursor you run it with `/express-addon-review` or by asking for Express Add-on Review. A review on this computer stays here: the dashboard is localhost, and the panel is built on this machine.
 - **The agent no longer stops while it waits.** A chat that ended its turn after you pasted a license code in the dashboard was the bug. Now the first rule in `SKILL.md` is to keep going until `session.mjs done`, every command ends with a `next` line that says what to run, `session.mjs next` answers "what now?" at any point, and the dashboard shows an "agent quiet" banner with a one-click "Copy continue" if a chat ever does go quiet.
 - **A real UI check.** `audit.mjs` opens the panel in headless Chrome at 320px, in light and dark, with reduced motion, and clicks through it like a person (never Delete, Reset, Buy, or Sign out). It finds what the code scan cannot: a dialog whose close button sits at the bottom, a dialog with no way out, a control covered by another, text clipped or overflowing, broken images, unreadable contrast, controls a keyboard cannot reach, and script or network errors. Each finding has an annotated screenshot and a guess at the source line.
 - **Confirmed UI bugs are fixed first, without a question.** Warnings go into the one "fix everything" question. The audit runs again afterwards and marks what is really gone.

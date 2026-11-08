@@ -8,15 +8,17 @@ description: >-
   out). Measured bugs are fixed without asking. It asks once whether to follow
   on a live dashboard or in chat, then only the big choices: test license, fix
   the rest, design, small UI polish, listing. It runs to the end without
-  stopping. Use when the user mentions an Adobe Express add-on, marketplace
-  review, Express branding, publishing an Express add-on, or listing screenshots.
+  stopping. Use when the user says Express Add-on Review or express addon review,
+  or mentions an Adobe Express add-on, a marketplace review, Express branding,
+  publishing an Express add-on, listing screenshots, or reviewing an add-on on
+  this computer.
 license: MIT
 compatibility: Requires Node.js 18 or newer. The panel walk and the listing screenshots need Chrome, Edge, or Chromium (set CHROME_PATH to choose one). The dashboard needs a browser on the same computer and falls back to chat when it cannot start. pdftotext extracts the brand PDF when it is installed.
 ---
 
-# Add-on Preflight
+# Express Add-on Review
 
-Review one Adobe Express add-on directory. Change it only for what this page says to change.
+Review one Adobe Express add-on directory on this computer. Change it only for what this page says to change. Do not hand the review to a cloud agent. The scripts, the dashboard, and the panel all run here.
 
 The skill root is the directory that contains this file. Run the scripts from there. Reviews are written outside the skill and outside the add-on, in `~/.express-addon-review/<slug>/`. The scripts remember that folder, so `--out` is never needed.
 
@@ -60,7 +62,7 @@ node scripts/review.mjs --input /absolute/path/to/addon --no-refresh
 
    Point `--input` at the project root. A zip in the project root is checked as the upload. Pass `--zip path/to/upload.zip` for one stored elsewhere. It writes `report.json`, `report.md`, `questions.json`, and `session.json` to the review folder and prints that path.
 
-3. **Ask where to follow the review.** If you run on another machine than the user's (a cloud agent, SSH, a container), skip the question, run `node scripts/session.mjs mode --set chat`, and continue in chat. Otherwise call AskQuestion with the first object in `questions.json` (`mode`). Title is `Next step`. Pass `prompt` and each option's `id` and `label` through unchanged.
+3. **Ask where to follow the review.** On this computer, call AskQuestion with the first object in `questions.json` (`mode`). Title is `Next step`. Pass `prompt` and each option's `id` and `label` through unchanged. The dashboard is a page on localhost. If you are not on the user's computer (a cloud agent, SSH, a container), skip the question, run `node scripts/session.mjs mode --set chat`, and continue in chat.
 
    - `dashboard`: `node scripts/session.mjs mode --set dashboard`, then `node scripts/dashboard.mjs start`. It opens Chrome and prints `{ ok, url }`. Say the link once, in one line, and carry on in the same turn. If `ok` is false, say the reason in one sentence, run `session.mjs mode --set chat`, and continue in chat.
    - `chat`: `node scripts/session.mjs mode --set chat`. Give a short summary of errors, warnings, and review patterns. Name the docs `sha`.
