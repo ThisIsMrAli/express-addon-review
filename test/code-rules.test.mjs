@@ -36,6 +36,10 @@ test("plain controls are flagged once per file with a count", () => {
   assert.match(found[0].message, /2 plain controls/);
 });
 
+test("a color input is left alone, because Spectrum Web Components has no color control", () => {
+  assert.equal(has({ "src/P.tsx": 'export const P = () => <input type="color" value={fill} onChange={setFill} />;' }, "control-not-spectrum"), false);
+});
+
 test("Spectrum controls and Spectrum-classed elements are not flagged as plain", () => {
   assert.equal(has({ "src/P.tsx": "export const P = () => <sp-button>Go</sp-button>;" }, "control-not-spectrum"), false);
   assert.equal(has({ "src/P.tsx": 'export const P = () => <button className="spectrum-Button">Go</button>;' }, "control-not-spectrum"), false);

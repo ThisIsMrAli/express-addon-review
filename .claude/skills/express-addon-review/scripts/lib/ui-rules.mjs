@@ -79,7 +79,8 @@ function checkFonts(ctx) {
 // ------------------------------------------------------------- controls
 
 const NATIVE = ["button", "select", "textarea", "input"];
-const NATIVE_INPUT = /^(text|search|number|range|checkbox|radio|email|password|url|tel|color|date|time)$/i;
+// A color input stays. Spectrum Web Components ships no work-ready color control, so replacing it would invent one.
+const NATIVE_INPUT = /^(text|search|number|range|checkbox|radio|email|password|url|tel|date|time)$/i;
 
 function checkControls(ctx) {
   for (const file of markup(ctx)) {
@@ -96,7 +97,7 @@ function checkControls(ctx) {
       file.rel,
       hits[0].line,
       `The fresh visual-elements page says foundational components should use the Spectrum for Adobe Express theme. This file draws ${hits.length} plain control${hits.length === 1 ? "" : "s"} (${names.join(", ")}), which do not get the Express look.`,
-      "Use Spectrum controls with the Express theme: sp-button, sp-action-button, sp-slider, sp-textfield, sp-picker, sp-checkbox (or the swc-react versions)."
+      "Replace each one with the Spectrum control for the same job (sp-button, sp-action-button, sp-slider, sp-textfield, sp-picker, sp-checkbox, or the swc-react versions) and keep its handler. If Spectrum Web Components has no control for that job, leave the native one. It has no color picker, so an input type=color stays."
     );
   }
 }

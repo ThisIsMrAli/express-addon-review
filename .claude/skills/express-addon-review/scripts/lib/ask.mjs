@@ -209,7 +209,7 @@ function designAsk(design) {
     title: "Design",
     prompt: `Apply Spectrum Web Components with the Express theme, and the Express design guidelines? ${theme} I will not restyle the panel until you say yes.${tailwind}`,
     options: [
-      { id: "add", label: "Add Spectrum Web Components with the Express theme (Recommended)", detail: "Installs the packages, wraps the app in the Express theme, and replaces plain controls. Reloads each screen." },
+      { id: "add", label: "Add Spectrum Web Components with the Express theme (Recommended)", detail: "Installs the packages, wraps the app in the Express theme, and replaces plain controls that Spectrum Web Components ships. A color input stays. Reloads each screen." },
       leave
     ]
   };
