@@ -75,7 +75,13 @@ node scripts/audit.mjs
 
    When nothing runs at the panel's address it builds the add-on and serves the build from this computer, so it never needs an Adobe sign-in. It then opens the panel at 320px in a private headless Chrome, presses every screen and dialog it can reach (never anything that deletes, buys, or leaves the panel), repeats in dark, and measures each one. It writes the results into the session, so the dashboard shows the bar move and the captures appear. Typical time is one to three minutes, plus the build the first time.
 
-   Its output lists each **bug** with the screen and `file:line`. These are measured, not opinions: a close button at the bottom of a dialog, a control covered by another, a dialog that does not fit or has no way out, a sideways scroll, an image that did not load, a blank panel. **Fix every bug now, without asking**, then run `node scripts/audit.mjs` again. It marks a bug `fixed` only when it no longer measures it. Repeat until no bug is open. Warnings (contrast, small tap targets, cut-off text, console errors) wait for the `fix` question.
+   Its output lists each **bug** with the screen and `file:line`. These are measured, not opinions: a close button at the bottom of a dialog, a control covered by another, a dialog that does not fit or has no way out, a sideways scroll, an image that did not load, a blank panel. **Fix every bug now, without asking**: edit all of them first, then run `node scripts/audit.mjs --recheck` once. A recheck opens only the screens those notes came from, so it takes seconds, and it marks a bug `fixed` only when it no longer measures it. Repeat only for what is still open. The full walk (every screen, light and dark) runs once at the start and once more after the last edit; `session.mjs next` asks for it. Warnings (contrast, small tap targets, cut-off text, fonts, console errors) wait for the `fix` question.
+
+   **Work from the evidence in the note.** The note text names the problem, the screen, and usually `file:line`. Do not open the screenshots to see it again. Open the file, change the element the note names, and nothing around it. Rules for edits:
+   - A tap target under 24px is fixed by growing the hit area (padding, or an invisible `::before`), not by enlarging the drawn thing. A pager dot stays a dot.
+   - Never remove a feature, a dialog, or a tour to silence a note. If a note is wrong for this add-on, mark it `skipped` with `session.mjs note --id <id> --status skipped` and say why in the closing summary.
+   - Never edit the add-on so it renders outside Express: no preview mode, no fake SDK host. The audit supplies the stand-in itself.
+   - Change shared CSS (a global selector, a theme file) only when the note names it. An edit there moves every screen.
 
    The audit sets the `panel` step to `done` itself when no bug is open. If the code mentions a license but the walk found no field to type one in, it skips the `access` step and says so. Do not ask for a license then.
 
@@ -91,9 +97,9 @@ node scripts/audit.mjs
 
    If `wait` prints `server-down`, run `dashboard.mjs start` once. If that fails, `session.mjs mode --set chat` and ask the same question with AskQuestion.
 
-6. **Apply the answer.** What each option means is in [references/session.md](references/session.md). After the fixes, scan again with `node scripts/review.mjs --input /absolute/path/to/addon --no-refresh --rescan`, run `node scripts/audit.mjs` again, and set the step to `done`.
+6. **Apply the answer.** What each option means is in [references/session.md](references/session.md). Apply every code finding in one pass, with no audit in between. Then scan again with `node scripts/review.mjs --input /absolute/path/to/addon --no-refresh --rescan`, run `node scripts/audit.mjs --recheck`, and set the step to `done`.
 
-7. **Polish.** Only on **apply**. [references/polish.md](references/polish.md) lists the small, measurable fixes. Do those, run the audit again, and show nothing redesigned. On **review**, list each item with its screen and the exact edit, and change nothing.
+7. **Polish.** Only on **apply**. [references/polish.md](references/polish.md) lists the small, measurable fixes. Do those, run `node scripts/audit.mjs --recheck`, and show nothing redesigned. On **review**, list each item with its screen and the exact edit, and change nothing.
 
 8. **Listing.** Only on a yes. Text: [references/submission.md](references/submission.md). Screenshots: [references/listing-shots.md](references/listing-shots.md). Start with `prepare-listing.mjs`, and finish with `render-listing.mjs`, which refuses a page that left the locked template. Show the draft text and the finished screenshots with `listing-review` and `shots-review` before anything is written into the add-on. A painted banner is not an upload file.
 

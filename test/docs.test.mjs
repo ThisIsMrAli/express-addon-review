@@ -31,7 +31,8 @@ test("every script the docs mention exists", () => {
   for (const file of docs) {
     for (const match of read(file).matchAll(/scripts\/([\w./-]+\.(?:mjs|py))/g)) {
       const name = match[1];
-      assert.ok(fs.existsSync(path.join(skill, "scripts", name)), `${rel(file)} mentions scripts/${name}, which does not exist`);
+      const repoScript = path.basename(file) === "README.md" && fs.existsSync(path.join(root, "scripts", name));
+      assert.ok(repoScript || fs.existsSync(path.join(skill, "scripts", name)), `${rel(file)} mentions scripts/${name}, which does not exist`);
     }
   }
 });

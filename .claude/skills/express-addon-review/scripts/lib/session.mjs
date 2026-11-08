@@ -208,7 +208,10 @@ export function setStep(out, id, status, detail, extra = {}) {
 /** The audit's result, kept so `next` knows which passes ran and which findings are still open. */
 export function setAudit(out, audit) {
   return mutate(out, (draft) => {
-    draft.audit = { ...(draft.audit || {}), ...audit, at: now(), rev: (draft.rev || 0) + 1 };
+    const stamp = now();
+    // A recheck measures only some screens. `fullAt` is the last time every screen was walked.
+    const { recheck, ...rest } = audit;
+    draft.audit = { ...(draft.audit || {}), ...rest, at: stamp, rev: (draft.rev || 0) + 1, ...(recheck ? { recheckAt: stamp } : { fullAt: stamp }) };
   });
 }
 

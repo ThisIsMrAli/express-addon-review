@@ -40,10 +40,15 @@ export function nextAction(out, { dashboardUp = false } = {}) {
   const claimed = audit ? (session.notes || []).filter((note) => note.auto && note.status === "fixed" && note.fixedBy === "agent" && note.fixedRev > (audit.rev || 0)) : [];
   const confirm = {
     action: "run",
-    command: "node scripts/audit.mjs",
+    command: "node scripts/audit.mjs --recheck",
     notes: claimed.map((note) => note.id),
-    say: `You marked ${claimed.map((note) => note.id).join(", ")} fixed since the last audit. Run the audit again now. It counts a bug fixed only when it no longer measures it, and it reopens the note if it does.`
+    say: `You marked ${claimed.map((note) => note.id).join(", ")} fixed since the last audit. Run the recheck now: it opens only the screens those notes came from, so it takes seconds. It counts a bug fixed only when it no longer measures it, and it reopens the note if it does. Edit every open note first, then recheck once.`
   };
+  // A recheck looks at some screens. Edits made after the last full walk (a design swap, polish) can move things on screens it never opened.
+  const editedAfterFullWalk = audit && ["fix", "design", "polish"].some((id) => {
+    const item = step(id);
+    return item?.status === "done" && item.endedAt && item.endedAt > (audit.fullAt || audit.at || "");
+  });
 
   if (open("panel")) {
     if (!audit) {
@@ -57,7 +62,7 @@ export function nextAction(out, { dashboardUp = false } = {}) {
       }
     }
     if (uiErrors.length) {
-      return { action: "fix-ui", notes: uiErrors.map((note) => note.id), say: `Fix these ${uiErrors.length} measured UI bug${uiErrors.length === 1 ? "" : "s"} now, without asking. Each note has the file and line. Mark each \`session.mjs note --id <id> --status fixed\`, then run \`node scripts/audit.mjs\` again to confirm.` };
+      return { action: "fix-ui", notes: uiErrors.map((note) => note.id), say: `Fix these ${uiErrors.length} measured UI bug${uiErrors.length === 1 ? "" : "s"} now, without asking. The note text is the evidence, so do not open screenshots to see them. Each note has the file and line. Change only the element a note names. Mark each \`session.mjs note --id <id> --status fixed\`, then run \`node scripts/audit.mjs --recheck\` once to confirm.` };
     }
     if (claimed.length) return confirm;
     return { action: "run", command: 'node scripts/session.mjs step --id panel --status done --detail "<what was covered>"', say: "The walk is finished and no measured bug is open. Mark the panel step done, then ask the next question." };
@@ -65,6 +70,11 @@ export function nextAction(out, { dashboardUp = false } = {}) {
 
   // Not even a fix made later, in the fix or polish step, is done until the audit has measured it again.
   if (claimed.length) return confirm;
+
+  // Once the edits are over, walk every screen again, once, before the listing and the close.
+  if (editedAfterFullWalk && !["fix", "design", "polish"].some((id) => open(id)) && (open("listing") || open("done") || !step("done"))) {
+    return { action: "run", command: "node scripts/audit.mjs", say: "The edits are finished. Walk every screen once more, in light and dark, to catch anything the edits moved on a screen the rechecks did not open. Run it now." };
+  }
 
   for (const id of ["fix", "design", "polish", "listing"]) {
     if (!open(id)) continue;

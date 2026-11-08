@@ -168,8 +168,9 @@
     }
     return false;
   }
-  const POPUP_ROLE = /^(menu|listbox|tooltip|dialog|alertdialog|combobox|tree|grid)$/;
-  const POPUP_NAME = /(^|[-_ ])(popover|popup|dropdown|menu|tooltip|listbox|flyout|picker)([-_ ]|$)/i;
+  // A toast or a notice slides over the panel for a few seconds on purpose, and it is not a control that was covered by mistake.
+  const POPUP_ROLE = /^(menu|listbox|tooltip|dialog|alertdialog|combobox|tree|grid|alert|status|log)$/;
+  const POPUP_NAME = /(^|[-_ ])(popover|popup|dropdown|menu|tooltip|listbox|flyout|picker|toast|toastify|snackbar|notification)([-_ ]|$)/i;
   function positioned(el, kinds) {
     for (let node = el; node && node.nodeType === 1 && node !== document.documentElement; node = parentOf(node)) {
       if (kinds.includes(getComputedStyle(node).position)) return true;
@@ -198,6 +199,46 @@
       if (["fixed", "absolute", "sticky"].includes(getComputedStyle(node).position)) host = node;
     }
     return host;
+  }
+
+  // ---- type: Spectrum is Adobe Clean, which Express injects into every add-on -----------------------
+  const FONT_OK = /^(adobe[- ]clean(?: han| serif)?|inherit|initial|unset|revert|revert-layer)$/;
+  const FONT_SYSTEM = /^(system-ui|ui-sans-serif|-apple-system|blinkmacsystemfont|segoe ui|roboto|helvetica(?: neue)?|arial|sans-serif|noto sans|ubuntu|cantarell|oxygen|fira sans|droid sans|source sans(?: pro| 3)?)$/;
+  const FONT_CODE = /^(monospace|ui-monospace|menlo|monaco|consolas|courier(?: new)?|sfmono-regular|sf mono|source code pro|fira code|jetbrains mono|liberation mono|dejavu sans mono)$/;
+  /** The typeface a person would see named first, when it is not Adobe Clean, a system stack, or a code font. */
+  function offFont(style) {
+    const list = String(style.fontFamily || "").split(",").map((part) => part.trim().replace(/^["']|["']$/g, "").toLowerCase()).filter(Boolean);
+    if (!list.length || list.some((name) => FONT_OK.test(name))) return "";
+    if (list.some((name) => /^(serif|cursive|fantasy)$/.test(name))) return list[0];
+    return list.find((name) => !FONT_SYSTEM.test(name) && !FONT_CODE.test(name) && !/icon|symbol|emoji/.test(name)) || "";
+  }
+
+  /** The tallest band inside a dialog with nothing in it, between the content above and below. */
+  function emptyBand(modal, all) {
+    const mr = modal.getBoundingClientRect();
+    const spans = [];
+    for (const el of all) {
+      if (el === modal || !contains(modal, el) || !visible(el)) continue;
+      const r = el.getBoundingClientRect();
+      const tag = el.tagName;
+      const style = getComputedStyle(el);
+      const dot = r.width <= 40 && r.height <= 40 && parseColor(style.backgroundColor)?.a > 0.1;
+      const content = ownText(el) || isControl(el) || /^(IMG|SVG|CANVAS|VIDEO|PICTURE|HR|PROGRESS|METER)$/i.test(tag) || dot;
+      if (!content) continue;
+      const top = Math.max(r.top, mr.top);
+      const bottom = Math.min(r.bottom, mr.bottom);
+      if (bottom - top < 1) continue;
+      spans.push({ top, bottom, el });
+    }
+    if (spans.length < 2) return null;
+    spans.sort((a, b) => a.top - b.top);
+    let edge = spans[0];
+    let best = null;
+    for (const span of spans.slice(1)) {
+      if (span.top - edge.bottom > (best ? best.h : 0)) best = { h: span.top - edge.bottom, y: edge.bottom, above: edge.el, below: span.el };
+      if (span.bottom > edge.bottom) edge = span;
+    }
+    return best;
   }
 
   // ---- one pass at the current scroll position ------------------------------------------------
@@ -281,7 +322,7 @@
       const crowded = rects.some((other) => other.el !== el && other.r.left <= cx + 12 && other.r.right >= cx - 12 && other.r.top <= cy + 12 && other.r.bottom >= cy - 12);
       if (!crowded) continue;
       small += 1;
-      add({ kind: "small-target", severity: "warn", message: `"${labelOf(el) || el.tagName.toLowerCase()}" is ${Math.round(r.width)}×${Math.round(r.height)}px with another control right beside it. A tap target should be at least 24×24px (WCAG 2.5.8).`, fix: "Add padding or set a minimum 24px size. Spectrum controls are already 32px.", el, rect: box(el) });
+      add({ kind: "small-target", severity: "warn", message: `"${labelOf(el) || el.tagName.toLowerCase()}" is ${Math.round(r.width)}×${Math.round(r.height)}px with another control right beside it. A tap target should be at least 24×24px (WCAG 2.5.8).`, fix: "Grow the hit area (padding, or an invisible ::before that extends past the edge) and keep the drawn size, so a dot stays a dot. Spectrum controls are already 32px.", el, rect: box(el) });
     }
 
     // Text that is cut off.
@@ -334,6 +375,19 @@
         entry.count += 1;
         contrast.set(key, entry);
       }
+    }
+    // Type that is not Adobe Clean. One finding per typeface, not one per line of text.
+    const fonts = new Map();
+    for (const el of everyScoped) {
+      if (!ownText(el) || /^(SCRIPT|STYLE|NOSCRIPT|TITLE|OPTION|SVG|PATH|TEXT|TSPAN)$/i.test(el.tagName)) continue;
+      const off = offFont(getComputedStyle(el));
+      if (!off) continue;
+      const entry = fonts.get(off) || { count: 0, el };
+      entry.count += 1;
+      fonts.set(off, entry);
+    }
+    for (const [name, entry] of [...fonts].slice(0, 2)) {
+      add({ kind: "font-off", severity: "warn", message: `${entry.count} piece${entry.count === 1 ? "" : "s"} of text ${entry.count === 1 ? "is" : "are"} set in "${name}", for example "${clean(entry.el.textContent).slice(0, 36)}". Spectrum is built on Adobe Clean, and Express loads it into every add-on, so this looks out of place next to the host.`, fix: "Remove the font-family override so Adobe Clean applies, or use font-family: var(--spectrum-sans-font-family-stack), adobe-clean, sans-serif.", el: entry.el, rect: box(entry.el) });
     }
     for (const [key, entry] of [...contrast].slice(0, 5)) {
       add({ kind: "low-contrast", severity: "warn", message: `Contrast is ${entry.ratio.toFixed(1)}:1 on "${clean(entry.el.textContent).slice(0, 36)}"${entry.count > 1 ? ` and ${entry.count - 1} more like it` : ""}. Text needs 4.5:1.`, fix: "Use a darker text colour, or a lighter or darker background.", el: entry.el, rect: box(entry.el) });
@@ -418,8 +472,13 @@
         if (offset > 0.5) {
           keep([{ kind: "dialog-close-misplaced", severity: "error", message: `The close button is at the bottom of the dialog (${Math.round(offset * 100)}% down). People look for it in the top corner.`, fix: "Put the dismiss control in the dialog header, top right. If the dialog uses a vertical ButtonGroup, move the dismiss button out of it or switch to a horizontal group.", el: item.el, rect: box(item.el) }], 0);
         } else if (Math.min(c.width, c.height) < 24) {
-          keep([{ kind: "small-target", severity: "warn", message: `The close button is ${Math.round(c.width)}×${Math.round(c.height)}px. It should be at least 24×24px.`, fix: "Enlarge its hit area.", el: item.el, rect: box(item.el) }], 0);
+          keep([{ kind: "small-target", severity: "warn", message: `The close button is ${Math.round(c.width)}×${Math.round(c.height)}px. It should be at least 24×24px.`, fix: "Enlarge its hit area with padding, and keep the drawn icon the same size.", el: item.el, rect: box(item.el) }], 0);
         }
+      }
+      // A dialog that is mostly air: the content sits at its ends and a wide band between them is empty.
+      const band = emptyBand(modal, all);
+      if (band && band.h >= Math.max(96, r.height * 0.3)) {
+        keep([{ kind: "dialog-empty-space", severity: "warn", message: `The dialog has an empty band ${Math.round(band.h)}px tall (${Math.round((band.h / Math.max(r.height, 1)) * 100)}% of its height) between "${labelOf(band.above) || band.above.tagName.toLowerCase()}" and "${labelOf(band.below) || band.below.tagName.toLowerCase()}". It looks unfinished and pushes the actions far from the text.`, fix: "Size the dialog to its content with height: auto and max-height: 100%, instead of a fixed height or a stretched flex column. Keep the actions right under the content.", el: modal, rect: { x: Math.round(r.left), y: Math.round(band.y), w: Math.round(r.width), h: Math.round(band.h) } }], 0);
       }
       if (!exits.length) {
         keep([{ kind: "dialog-no-exit", severity: "error", message: "This dialog has no Close, Cancel, or Back control. A person who opens it is trapped unless they know to press Escape.", fix: "Add a visible Close control in the dialog header, top right. A Close placed at the bottom of the dialog is reported as misplaced.", el: modal, rect: box(modal) }], 0);

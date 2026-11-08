@@ -23,9 +23,25 @@ Match the stack the scan already found.
 - React Spectrum only: leave it unless they agree to move. The guide prefers `swc-react`, and it also documents `@react-spectrum/theme-express` while that package is alpha.
 - Both `swc-react` and React Spectrum: the guide says not to keep two component sets. Move a control only after they say yes. Do not rewrite the panel in one pass.
 
+Swapping a control changes how it reports an event, so do it with care:
+
+- Use the library's own wrapper and its documented props. A raw Spectrum Web Component (`<sp-tabs>`, `<sp-slider>`) fires `change` on the element, which does not reach a React `onChange`, and its `selected` or `value` is read as a property, so set it as one. `swc-react` wrappers already map these. Look the control up in the fetched docs before writing the swap.
+- Swap one kind of control at a time (all buttons, then all fields), and run the add-on's build or type check after each kind. A type error found there costs seconds. The same error found by an audit costs a minute.
+- A swap is only done when the screen it opens still opens. The full walk reports `screen-lost` when a screen the earlier walk reached cannot be reached now.
+
 `@spectrum-icons/express` is the Express icon set named in the implementation guide. Do not import a default Spectrum icon for a control you are already theming for Express.
 
 Tailwind, `react-icons`, or another custom control stays until they ask to replace that control.
+
+## What the scan finds before any browser opens
+
+These come from the code alone, so fix them in the same pass as the other code findings:
+
+- `font-not-adobe-clean`: a `font-family` that names another typeface. `design/fonts.md` says the Adobe Express fonts, including `adobe-clean` in weights 400, 700, 800, and 900, are injected into the add-on and need no bundling. The visual-elements page says Spectrum is based on Adobe Clean. Custom fonts are allowed, but a body font that differs from the host looks wrong next to it. The fix is to delete the declaration, or use `var(--spectrum-sans-font-family-stack)`. A `!important` font blocks the theme and is always wrong.
+- `control-not-spectrum`: a plain `<button>`, `<input>`, `<select>`, or `<textarea>`. Replace it with the Spectrum control for the same job, in the library the project already uses. Keep the same handler and props, and change nothing else in the file.
+- `spectrum-not-express`: the project uses Spectrum and never selects `system="express"`.
+- `handler-does-nothing`: a control is wired to a function with an empty body. Write the action. If the feature does not exist, ask before removing the control.
+- `sdk-method-unknown`: a call one or two letters from a documented Add-on SDK member. Use the documented name.
 
 ## Listing pages that disagree
 

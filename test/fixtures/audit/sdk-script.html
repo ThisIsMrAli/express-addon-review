@@ -1,0 +1,9 @@
+<!doctype html><meta charset="utf-8"><title>A panel that loads the SDK with a script tag</title>
+<style> body { margin: 0; padding: 24px; font: 14px system-ui; } button { height: 36px; } </style>
+<div id="root"></div>
+<script src="https://new.express.adobe.com/static/add-on-sdk/sdk.js"></script>
+<script>
+  addOnUISdk.ready.then(() => {
+    document.getElementById("root").innerHTML = `<h1>Ready by script</h1><button>Go</button>`;
+  });
+</script>

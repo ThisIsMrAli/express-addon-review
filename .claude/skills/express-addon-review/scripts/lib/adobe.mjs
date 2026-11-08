@@ -2,6 +2,7 @@ import path from "node:path";
 import { PACKAGE_LIMIT } from "./package.mjs";
 import { BRAND_TEXT, publishedUrl } from "./sources.mjs";
 import { attrValue, COPY_EXT, hasAttr, hasVisibleText, innerOf, MARKUP_EXT, openTags, OWN_VALIDATION } from "./source.mjs";
+import { UI_CHECKS } from "./ui-rules.mjs";
 
 const UI = "src/pages/guides/build/distribute/guidelines/general/user-interface.md";
 const MONETIZATION = "src/pages/guides/build/distribute/guidelines/monetization.md";
@@ -50,7 +51,8 @@ export const ADOBE_RULES = [
   rule("package-root", "error", PUBLIC, "MANIFEST_NOT_FOUND_ERROR", checkPackageRoot),
   rule("package-size", "error", PUBLIC, "must not exceed 50 MB", checkPackageSize),
   rule("package-hidden", "error", PUBLIC, "Hidden files should not be present", checkPackageHidden),
-  rule("package-entry", "error", PUBLIC, "production-ready built content", checkPackageEntry)
+  rule("package-entry", "error", PUBLIC, "production-ready built content", checkPackageEntry),
+  ...UI_CHECKS.map((check) => rule(check.id, check.severity, check.sourceKey, check.evidence, check.run))
 ];
 
 function rule(id, severity, sourceKey, evidence, run) {
@@ -438,14 +440,14 @@ function checkOfferingName(ctx) {
 
 function checkLogoFile(ctx) {
   for (const image of ctx.images) {
-    if (/adobe[-_ ]?logo|premium[-_ ]?crown/i.test(path.basename(image.rel)) && !/designed-for/i.test(image.rel)) {
+    if (/adobe[-_ ]?(logo|icon|mark|wordmark|express)|premium[-_ ]?crown/i.test(path.basename(image.rel)) && !/designed-for/i.test(image.rel)) {
       ctx.add(image.rel, 1, "The fresh brand guide tells you to use the Designed for badge unless Adobe has given a written license for the logo.", "Use your own icon, or the Designed for badge.");
     }
   }
 }
 
 function listingImages(ctx) {
-  return ctx.images.filter((image) => /(^|\/)(listing|thumbnails)\//.test(image.rel));
+  return ctx.images.filter((image) => /(^|\/)(listing|thumbnails)\//.test(image.rel) && /\.(png|jpe?g)$/i.test(image.rel));
 }
 
 function checkPackageRoot(ctx) {

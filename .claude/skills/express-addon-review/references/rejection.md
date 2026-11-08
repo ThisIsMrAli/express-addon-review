@@ -27,6 +27,8 @@ Do this after `review.mjs`, before the panel walk.
 | Cannot log in, no credentials, no credits | the `credentials` question, and the notes to the reviewer in [submission.md](submission.md) |
 | Manifest not found, package too big, wrong zip | `package-root`, `package-size`, `package-hidden`, `package-stale` |
 | Screenshot, icon, listing wrong | `listing-icon`, `listing-screenshot`, and [listing-shots.md](listing-shots.md) |
+| Does not follow the Express design, wrong font, plain controls | `font-not-adobe-clean`, `control-not-spectrum`, `spectrum-not-express`, and [spectrum.md](spectrum.md) |
+| A button or feature does nothing, an error in the console | `handler-does-nothing`, `sdk-method-unknown`, and the click-through in [visual.md](visual.md) |
 | Dark theme, unreadable, contrast | `theme-missing`, and the dark pass in [visual.md](visual.md) |
 | Label, alt text, keyboard | `field-label`, `image-alt`, `button-name`, and the keyboard pass |
 | A number like `4.11e+28`, empty input | `input-bounds`, `unbounded-number` |

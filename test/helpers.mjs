@@ -23,7 +23,7 @@ export const manifest = {
 /** A project in a temp folder. Object values are written as JSON. */
 export function project(files) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "express-fixture-"));
-  const all = { "manifest.json": manifest, "index.html": "<body><sp-theme>Adobe Express</sp-theme></body>", ...files };
+  const all = { "manifest.json": manifest, "index.html": '<body><sp-theme system="express">Adobe Express</sp-theme></body>', ...files };
   for (const [name, body] of Object.entries(all)) {
     const full = path.join(dir, name);
     fs.mkdirSync(path.dirname(full), { recursive: true });

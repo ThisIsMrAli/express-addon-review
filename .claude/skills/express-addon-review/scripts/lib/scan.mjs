@@ -11,7 +11,7 @@ import { describePackage, findPackages } from "./package.mjs";
 import { blankComments, MARKUP_EXT } from "./source.mjs";
 
 const TEXT_EXT = new Set([".html", ".htm", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".mts", ".cts", ".md", ".json", ".css", ".vue", ".svelte"]);
-const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg"]);
+const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg", ".svg", ".webp", ".gif"]);
 const SKIP = new Set(["node_modules", ".git", "dist", "build", "coverage", "review-output"]);
 
 export function scanAddon(root, options = {}) {
@@ -51,6 +51,7 @@ export function scanAddon(root, options = {}) {
     files,
     images,
     packages: zips.map(describePackage),
+    docs,
     newest,
     exists: (rel) => fs.existsSync(path.join(dir, rel)),
     entryHtml: () => (manifest.entryPoints || []).find((entry) => entry.main)?.main || "index.html"

@@ -9,6 +9,26 @@ import { lineAt } from "./source.mjs";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const PROBE = fs.readFileSync(path.join(skillRoot, "assets", "audit", "probe.js"), "utf8");
+const SDK_STUB = fs.readFileSync(path.join(skillRoot, "assets", "audit", "sdk-stub.js"), "utf8");
+
+/** Names an add-on may import by name from the SDK module. */
+const SDK_NAMES = ["Range", "RenditionFormat", "RenditionType", "RenditionIntent", "Variant", "ButtonType", "DialogResultType", "FileSizeLimitUnit", "FileSizeLimit", "SupportedMimeTypes", "MediaTabs", "EntrypointType", "PlatformType", "DeviceClass", "EnvironmentType", "ColorPickerEvent", "AuthorizationStatus", "Constants", "BleedUnit", "LinkOptions", "PageOrientation", "PanelActionType", "ElementsTabs", "VideoResolution", "PlayVideoPlacement", "RuntimeType", "AppEvent", "Placement", "Role"];
+
+/**
+ * The answer to a request for Adobe's SDK file. An add-on loads it either as a module (`import sdk from "https://…"`)
+ * or as a plain script that sets `window.addOnUISdk`, and the two need different files.
+ */
+export function sdkStandIn(kind = "module") {
+  const body = kind === "script"
+    ? `${SDK_STUB}\nwindow.addOnUISdk = __sdk;\n`
+    : `${SDK_STUB}\nexport default __sdk;\n${SDK_NAMES.map((name) => `export const ${name} = __deep("${name}");`).join("\n")}\n`;
+  return () => ({ body, type: "application/javascript" });
+}
+
+/** True when the project loads the SDK with a plain script tag, not as a module. */
+export function loadsSdkAsScript(files) {
+  return files.some((file) => /\.html?$/i.test(file.rel) && /<script\b(?![^>]*\btype\s*=\s*["']module["'])[^>]*\bsrc\s*=\s*["'][^"']*add-on-sdk[^"']*["']/i.test(file.text));
+}
 
 /** Things a review must never press: they change data, leave the panel, or cost money. */
 const RISKY = /\b(delete|remove|reset|clear|erase|discard|unlink|disconnect|revoke|uninstall|sign ?out|log ?out|cancel (my )?(plan|subscription)|buy now|purchase|checkout)\b/i;
@@ -296,7 +316,9 @@ async function settle(page, minMs, maxMs) {
   await sleep(minMs);
   while (Date.now() - begun < maxMs) {
     const now = await page.eval("document.body ? document.body.innerText.length + ':' + document.getElementsByTagName('*').length : ''").catch(() => "");
-    if (now && now === last) {
+    // A page with no text yet may still be starting: a script, the SDK, or a font is on its way.
+    const empty = /^0:/.test(now) && Date.now() - begun < 3500;
+    if (now && now === last && !empty) {
       stable += 1;
       if (stable >= 2) return;
     } else {
@@ -372,7 +394,7 @@ function rank(item) {
  * Walks the panel and measures every screen it can reach, in each theme.
  * Light is the discovery pass. Dark replays the screens light found.
  */
-export async function walkPanel({ url, themes = ["light", "dark"], maxStates = 28, budgetMs = 300_000, maxDepth = 2, license = "", rootTrail = [], known = new Set(), shotDir, progress = () => {} }) {
+export async function walkPanel({ url, themes = ["light", "dark"], maxStates = 28, budgetMs = 300_000, maxDepth = 2, license = "", rootTrail = [], known = new Set(), shotDir, sdk = "module", only = null, progress = () => {} }) {
   const page = await launch({ width: 320, height: 800, scale: 2 });
   const began = Date.now();
   const states = [];
@@ -380,6 +402,8 @@ export async function walkPanel({ url, themes = ["light", "dark"], maxStates = 2
   const timeLeft = () => budgetMs - (Date.now() - began);
   try {
     await page.send("Page.addScriptToEvaluateOnNewDocument", { source: PROBE });
+    // Outside Express the real SDK never says it is ready, so a panel that waits for it stays blank.
+    await page.intercept("*add-on-sdk*", sdkStandIn(sdk));
     fs.mkdirSync(shotDir, { recursive: true });
     let n = 0;
     const capture = async (state, result, theme) => {
@@ -399,7 +423,10 @@ export async function walkPanel({ url, themes = ["light", "dark"], maxStates = 2
     // Light: find the screens.
     const first = themes[0];
     await page.media(first);
-    const queue = [{ trail: rootTrail, label: rootTrail.length ? "After the license" : "Home", tour: true }];
+    // A recheck opens the screens it is given and nothing else: it measures, it does not explore.
+    const queue = only
+      ? only.map((screen) => ({ trail: screen.trail, label: screen.label, tour: false }))
+      : [{ trail: rootTrail, label: rootTrail.length ? "After the license" : "Home", tour: true }];
     const seen = new Set(known);
     const pressed = new Set();
     // Light finds the screens and dark replays them, so light may use only half the time.
@@ -423,7 +450,7 @@ export async function walkPanel({ url, themes = ["light", "dark"], maxStates = 2
       const inTour = Boolean(item.tour && result.modal);
       const trailHasLicenseField = await page.eval("Boolean(window.__expressReview.licenseField())");
       if (trailHasLicenseField) state.licenseField = true;
-      if (depth < maxDepth && (!inTour || item.trail.filter((step) => step.tour).length < 8)) {
+      if (!only && depth < maxDepth && (!inTour || item.trail.filter((step) => step.tour).length < 8)) {
         const { list } = await page.eval("window.__expressReview.candidates()");
         // A control that is on every screen (a filter, a tab bar) is pressed once, where it is first met.
         const where = result.modal ? result.modal.selector : "page";

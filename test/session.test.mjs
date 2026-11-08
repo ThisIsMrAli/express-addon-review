@@ -278,6 +278,8 @@ test("next walks the review from the mode question to the end and never says fin
 
   for (const id of ["fix", "design", "polish", "listing"]) setStep(out, id, "done", "");
   setStep(out, "access", "skipped", "");
+  assert.equal(nextAction(out).command, "node scripts/audit.mjs", "edits came after the last full walk, so every screen is walked once more");
+  setAudit(out, { licensed: false, screens: 4, errors: 0, warnings: 0 });
   assert.equal(nextAction(out).action, "finish");
   finish(out, "ok");
   assert.equal(nextAction(out).action, "finished");
@@ -359,8 +361,8 @@ test("after the listing answer, next walks the text and the screenshots to their
   const { setListing } = await import("../.claude/skills/express-addon-review/scripts/lib/session.mjs");
   const out = folder();
   cli(out, "mode", "--set", "chat");
-  setAudit(out, { licensed: false });
   for (const id of ["panel", "fix", "design", "polish"]) setStep(out, id, "done", "");
+  setAudit(out, { licensed: false });
   publishAsk(out, planAll(report()).find((item) => item.id === "listing"));
   answerFromChat(out, "listing", "both");
   assert.equal(nextAction(out).action, "draft-listing", "the text comes first");

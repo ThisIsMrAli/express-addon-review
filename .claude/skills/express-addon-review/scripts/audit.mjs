@@ -8,6 +8,7 @@
  *
  *   node scripts/audit.mjs [--out dir] [--url https://localhost:5241/...]
  *   node scripts/audit.mjs --licensed        second pass with the license the user gave
+ *   node scripts/audit.mjs --recheck         only the screens with an open or just-fixed bug (seconds)
  *
  * When nothing answers at the panel's address it builds the add-on and serves the build from
  * this computer (no Adobe sign-in), or starts the add-on's own `npm start`, and stops it after.
@@ -15,7 +16,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { ensureServer, readSources, toNotes, walkPanel } from "./lib/audit.mjs";
+import { ensureServer, loadsSdkAsScript, readSources, toNotes, walkPanel } from "./lib/audit.mjs";
 import { findChrome, NO_CHROME } from "./lib/chrome.mjs";
 import { reminder } from "./lib/next.mjs";
 import { resolveOut } from "./lib/paths.mjs";
@@ -61,6 +62,19 @@ async function main() {
     return failure(out, "no-license-screen", "The first pass did not find a license field, so there is nowhere to enter the license.", "Skip the paid screens: `session.mjs step --id access --status skipped --detail \"No license field found\"`.");
   }
 
+  // A recheck opens only the screens with an open bug or a fix the agent claimed. It is the fast way to confirm a fix.
+  let only = null;
+  if (args.recheck && !licensed) {
+    const wanted = new Set(session.notes
+      .filter((note) => note.auto && note.screen && note.screen !== "Whole panel" && !note.screen.endsWith("(paid)")
+        && (note.status === "open" || (note.status === "fixed" && note.fixedBy === "agent" && note.fixedRev > (session.audit?.rev || 0))))
+      .map((note) => note.screen));
+    const screens = (previous?.states || []).filter((state) => Array.isArray(state.trail) && wanted.has(state.label));
+    if (previous?.states?.length) only = screens.length ? screens : [previous.states[0]];
+    else line("There is no earlier walk to recheck, so this is a full walk.");
+  }
+  const rechecked = only ? new Set(only.map((state) => state.label)) : null;
+
   const license = licensed ? await getLicense(out) : "";
   if (licensed && !license) throw new Error("The license is not available. Ask the `credentials` question again, or skip the paid screens.");
 
@@ -92,6 +106,8 @@ async function main() {
     say(licensed ? "Opening the paid screens" : "Opening the panel at 320px");
     result = await walkPanel({
       url: target,
+      sdk: loadsSdkAsScript(readSources(report.addonDir || project)) ? "script" : "module",
+      only: only ? only.map((state) => ({ label: state.label, trail: state.trail })) : null,
       themes: (args.themes || "light,dark").split(",").filter(Boolean),
       maxStates: Number(args["max-states"]) || 28,
       license,
@@ -123,9 +139,10 @@ async function main() {
   say("Working out where in the code each problem is");
   const sources = readSources(report.addonDir || project);
   const found = toNotes(result.states, sources, { licensed });
-  addConsoleNotes(found, result.seen, target);
+  if (!rechecked) addConsoleNotes(found, result.seen, target);
+  if (!rechecked && !licensed) addLostScreens(found, previous, result.states);
 
-  dropAutoShots(out);
+  if (!rechecked) dropAutoShots(out);
   const shotFor = new Map();
   for (const state of result.states) {
     for (const [theme, file] of Object.entries(state.shots)) {
@@ -135,18 +152,23 @@ async function main() {
     }
   }
 
-  const reconciled = reconcile(out, found, shotFor, licensed);
+  const reconciled = reconcile(out, found, shotFor, licensed, rechecked);
 
   const audited = readMerged(out);
   const ui = audited.notes.filter((note) => note.auto);
   const errors = ui.filter((note) => note.status === "open" && note.severity === "error");
   const warnings = ui.filter((note) => note.status === "open" && note.severity === "warn");
   // The code scan may have had nothing to fix. Panel warnings are something to ask about.
-  if (warnings.length && audited.steps.find((step) => step.id === "fix")?.status === "skipped") {
+  // A full walk that turns up new warnings after the fix step closed (a design swap moved something) reopens it.
+  const fixStatus = audited.steps.find((step) => step.id === "fix")?.status;
+  if (warnings.length && (fixStatus === "skipped" || (fixStatus === "done" && !rechecked && reconciled.added))) {
     setStep(out, "fix", "pending", `${warnings.length} panel warning${warnings.length === 1 ? "" : "s"} to fix`);
   }
   const previousStates = licensed ? previous.states : [];
-  fs.writeFileSync(path.join(out, "audit.json"), `${JSON.stringify({
+  // A recheck leaves the record of the full walk alone: its screens, trails, and signatures are still the map of the panel.
+  if (rechecked) {
+    fs.writeFileSync(path.join(out, "audit.json"), `${JSON.stringify({ ...previous, recheckedAt: new Date().toISOString(), recheckedScreens: [...rechecked] }, null, 2)}\n`);
+  } else fs.writeFileSync(path.join(out, "audit.json"), `${JSON.stringify({
     at: new Date().toISOString(),
     url: target,
     licensed,
@@ -159,15 +181,17 @@ async function main() {
     console: { exceptions: result.seen.exceptions.slice(0, 10), errors: result.seen.console.slice(0, 10), failed: result.seen.failed.slice(0, 10) }
   }, null, 2)}\n`);
 
-  setAudit(out, {
-    licensed: licensed || Boolean(audited.audit?.licensed),
-    passes: [...new Set([...(audited.audit?.passes || []), licensed ? "licensed" : "unlicensed"])],
-    screens: (audited.audit?.screens || 0) * (licensed ? 1 : 0) + result.states.length,
-    errors: errors.length,
-    warnings: warnings.length
-  });
+  setAudit(out, rechecked
+    ? { recheck: true, errors: errors.length, warnings: warnings.length }
+    : {
+      licensed: licensed || Boolean(audited.audit?.licensed),
+      passes: [...new Set([...(audited.audit?.passes || []), licensed ? "licensed" : "unlicensed"])],
+      screens: (audited.audit?.screens || 0) * (licensed ? 1 : 0) + result.states.length,
+      errors: errors.length,
+      warnings: warnings.length
+    });
   // Is there a place to type a license? Without one, asking for it would lead nowhere.
-  const wantsLicense = !licensed && Boolean(readReport(out)?.access?.needsCredential);
+  const wantsLicense = !licensed && !rechecked && Boolean(readReport(out)?.access?.needsCredential);
   const needsLicense = wantsLicense && result.states.some((state) => state.licenseField);
   if (wantsLicense && !needsLicense && !["done", "skipped"].includes(audited.steps.find((step) => step.id === "access")?.status)) {
     licenseNote = `The code mentions a license, but none of the ${result.states.length} screens the walk could open has a field to type one in, so there is nothing to unlock.`;
@@ -175,7 +199,9 @@ async function main() {
   }
 
   const count = `${result.states.length} screen${result.states.length === 1 ? "" : "s"} measured`;
-  const finished = errors.length === 0 && !needsLicense;
+  // A recheck never closes the panel step: only a walk of every screen can say the panel is clean.
+  const wasDone = audited.steps.find((step) => step.id === "panel")?.status === "done";
+  const finished = errors.length === 0 && !needsLicense && (!rechecked || wasDone);
   setStep(out, "panel", finished ? "done" : "running", `${count}${errors.length ? `, ${errors.length} bug${errors.length === 1 ? "" : "s"} to fix` : ", no bug found"}`, {
     doing: errors.length ? "Waiting for the fixes" : needsLicense ? "Waiting for the test license" : "",
     log: `Walked ${result.states.length} screen${result.states.length === 1 ? "" : "s"}: ${errors.length ? `${errors.length} bug${errors.length === 1 ? "" : "s"} to fix` : "no bug found"}.`
@@ -184,6 +210,7 @@ async function main() {
   const summary = {
     ok: true,
     pass: licensed ? "licensed" : "unlicensed",
+    ...(rechecked ? { recheck: [...rechecked] } : {}),
     screens: result.states.length,
     themes: (args.themes || "light,dark").split(",").filter(Boolean),
     seconds: Math.round((Date.now() - began) / 1000),
@@ -195,7 +222,7 @@ async function main() {
     confirmedFixed: reconciled.fixed,
     needsLicense,
     next: errors.length
-      ? `Fix the ${errors.length} bug${errors.length === 1 ? "" : "s"} above now, without asking. Mark each with \`session.mjs note --id <id> --status fixed\`, then run \`node scripts/audit.mjs\` again to confirm. ${reminder(out, { dashboardUp: Boolean(readServer(out)) })}`
+      ? `Fix the ${errors.length} bug${errors.length === 1 ? "" : "s"} above now, without asking. The note text is the evidence: do not open screenshots. Change only the element each note names. Edit all of them, mark each with \`session.mjs note --id <id> --status fixed\`, then run \`node scripts/audit.mjs --recheck\` once to confirm. ${reminder(out, { dashboardUp: Boolean(readServer(out)) })}`
       : reminder(out, { dashboardUp: Boolean(readServer(out)) })
   };
   process.stdout.write(`${JSON.stringify(summary)}\n`);
@@ -265,6 +292,27 @@ async function getLicense(out) {
   }
 }
 
+/**
+ * A screen the earlier full walk reached and this one did not. After an edit that means the way to it broke
+ * (a swapped control that no longer fires the handler, a removed button), and the walk would otherwise look clean.
+ */
+function addLostScreens(found, previous, states) {
+  const before = (previous?.states || []).filter((state) => Array.isArray(state.trail) && !/\(paid\)$/.test(state.label));
+  if (before.length < 2 || !states.length) return;
+  const now = new Set(states.map((state) => state.label));
+  const lost = before.filter((state) => !now.has(state.label)).map((state) => state.label);
+  if (!lost.length) return;
+  found.push({
+    key: `screen-lost:${lost.join("|")}`,
+    rule: "screen-lost",
+    severity: "warn",
+    screen: "Whole panel",
+    text: `${lost.length} screen${lost.length === 1 ? "" : "s"} the earlier walk reached cannot be reached now: ${lost.slice(0, 4).join(", ")}. If you did not remove ${lost.length === 1 ? "it" : "them"} on purpose, an edit broke the way there. Fix: check that the control that opens ${lost.length === 1 ? "it" : "them"} still fires its handler (a replaced control may emit a different event or need a different prop).`,
+    themes: [],
+    shotFile: ""
+  });
+}
+
 function addConsoleNotes(found, seen, url) {
   const origin = new URL(url).origin;
   if (seen.exceptions.length) {
@@ -294,9 +342,12 @@ function addConsoleNotes(found, seen, url) {
 }
 
 /** Keeps note ids stable across runs: found again stays, gone becomes fixed, new is added. */
-function reconcile(out, found, shotFor, licensed) {
+function reconcile(out, found, shotFor, licensed, rechecked = null) {
   const session = readMerged(out);
-  const inScope = (note) => note.auto && (Boolean(note.screen?.endsWith("(paid)")) === licensed || note.screen === "Whole panel");
+  // A recheck settles only the screens it opened. A note from any other screen is neither confirmed nor reopened by it.
+  const inScope = rechecked
+    ? (note) => note.auto && rechecked.has(note.screen)
+    : (note) => note.auto && (Boolean(note.screen?.endsWith("(paid)")) === licensed || note.screen === "Whole panel");
   const existing = session.notes.filter(inScope);
   const byKey = new Map(existing.map((note) => [note.key, note]));
   const foundKeys = new Set(found.map((note) => note.key));

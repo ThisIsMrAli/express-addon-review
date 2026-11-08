@@ -180,6 +180,31 @@ async function makePage(socket, size, cleanup) {
       });
     },
 
+    /**
+     * Answers requests whose address matches `urlPattern` from here, before they leave the machine.
+     * `respond(request)` returns `{ body, type }`, or nothing to let the request go on.
+     */
+    async intercept(urlPattern, respond) {
+      on("Fetch.requestPaused", (event) => {
+        let reply = null;
+        try { reply = respond(event.request); } catch { reply = null; }
+        const done = reply
+          ? send("Fetch.fulfillRequest", {
+            requestId: event.requestId,
+            responseCode: 200,
+            responseHeaders: [
+              { name: "Content-Type", value: reply.type || "application/javascript" },
+              { name: "Access-Control-Allow-Origin", value: "*" },
+              { name: "Cache-Control", value: "no-store" }
+            ],
+            body: Buffer.from(reply.body).toString("base64")
+          })
+          : send("Fetch.continueRequest", { requestId: event.requestId });
+        done.catch(() => {});
+      });
+      await send("Fetch.enable", { patterns: [{ urlPattern, requestStage: "Request" }] });
+    },
+
     /** A reviewer opens the add-on for the first time, so every visit starts without saved state. */
     async forget(origin) {
       await send("Storage.clearDataForOrigin", { origin, storageTypes: "local_storage,session_storage,indexeddb,cookies,cache_storage,service_workers" }).catch(() => {});

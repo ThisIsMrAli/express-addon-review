@@ -18,6 +18,8 @@ The same problem on several screens is one note, with the other screens listed i
 
 It will not press anything that looks like delete, reset, sign out, buy, or checkout, a download, a file picker, or a link that leaves the panel. A page that tries to open a new tab or an alert is stopped.
 
+Adobe's `sdk.js` waits for a message from Express before `ready` resolves, and a panel opened on its own never gets it. A panel that renders after `await addOnUISdk.ready` would stay blank. The audit answers that one request itself, from this computer, with a stand-in that lets the panel draw and the controls be pressed. Do not edit the add-on to make it render outside Express: no preview mode, no fake host, no change to the SDK import. The stand-in accepts any method name, so a misspelled call such as `addImag` is not found by the walk. The source scan finds it as `sdk-method-unknown`.
+
 It repeats every screen it found in dark (`prefers-color-scheme: dark`) with reduced motion, so a screen that only breaks in dark is caught.
 
 It writes each screen's capture, with the bugs outlined in pink and numbered, into the session. The dashboard shows them as they arrive. It also looks up where each bug is in the add-on's source, from the visible label, and gives a `file:line`. That is a lead, not proof. Open the file and check.
@@ -40,9 +42,12 @@ Run it again after every fix. It matches bugs across runs: one that is gone is m
 | `small-target` | A control is under 24×24px with another control within 24px. | Asked in `fix` |
 | `text-clipped` | Text is cut off. | Asked in `fix` |
 | `small-type` | Text is under 11px. | Asked in `fix` |
+| `dialog-empty-space` | A dialog has an empty band taller than 96px and 30% of its height between its content above and below. Usually a fixed height or a stretched flex column. | Asked in `fix` |
+| `font-off` | Text renders in a typeface that is not Adobe Clean, a system stack, or a code font. One note per typeface. | Asked in `fix` |
 | `low-contrast` | Text is under 4.5:1 against its background. The note names the theme. | Asked in `fix` |
 | `click-without-keyboard` | Something clickable is not a button, a link, or focusable. | Asked in `fix` |
 | `script-error` | The page threw an uncaught error while it was walked. | Asked in `fix` |
+| `screen-lost` | A screen the earlier full walk reached cannot be reached now. After an edit that usually means a replaced control no longer fires the handler that opened it (a tab bar that emits `change` instead of `onClick`, a prop that became an attribute). | Asked in `fix` |
 | `request-failed` | A file from the add-on itself failed to load. | Asked in `fix` |
 
 **Fix now** means: fix it without asking, run the audit again, and repeat until none is open. These are measurements, not opinions, and no user wants them left. A bug that cannot be fixed without changing the design goes in the closing summary with the reason.

@@ -1,0 +1,11 @@
+<!doctype html><meta charset="utf-8"><title>A panel that waits for the SDK</title>
+<style> body { margin: 0; padding: 24px; font: 14px system-ui; } button { height: 36px; } </style>
+<div id="root"></div>
+<script type="module">
+  import sdk from "https://new.express.adobe.com/static/add-on-sdk/sdk.js";
+  sdk.ready.then(async () => {
+    const theme = sdk.app.ui.theme;
+    await sdk.app.document.addImage(new Blob());
+    document.getElementById("root").innerHTML = `<h1>Ready in ${theme}</h1><button>Go</button>`;
+  });
+</script>

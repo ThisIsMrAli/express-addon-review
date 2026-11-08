@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { findChrome } from "../.claude/skills/express-addon-review/scripts/lib/chrome.mjs";
 import { launch } from "../.claude/skills/express-addon-review/scripts/lib/cdp.mjs";
 import { readSession, startSession } from "../.claude/skills/express-addon-review/scripts/lib/session.mjs";
-import { ensureServer, readSources, walkPanel, whereInSource } from "../.claude/skills/express-addon-review/scripts/lib/audit.mjs";
+import { ensureServer, loadsSdkAsScript, readSources, sdkStandIn, walkPanel, whereInSource } from "../.claude/skills/express-addon-review/scripts/lib/audit.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const skill = path.join(root, ".claude/skills/express-addon-review");
@@ -47,8 +47,10 @@ const EXPECTED = {
   "clipped-ok.html": [],
   "covered.html": ["control-covered"],
   "dialog-close-bottom.html": ["dialog-close-misplaced"],
+  "dialog-gap.html": ["dialog-empty-space"],
   "dialog-no-exit.html": ["dialog-no-exit"],
   "dialog-ok.html": [],
+  "font-off.html": ["font-off"],
   "footer-covers.html": ["control-covered"],
   "invisible-dialog.html": ["invisible-cover"],
   "layer-ok.html": [],
@@ -57,6 +59,31 @@ const EXPECTED = {
   "sideways.html": ["scrolls-sideways"],
   "small-and-faint.html": ["click-without-keyboard", "low-contrast", "small-target", "small-type", "text-clipped"]
 };
+
+test("a panel that waits for Adobe's SDK still draws, because the audit answers that one request", browser, async () => {
+  const page = await launch({ width: 320, height: 800, scale: 1 });
+  try {
+    await page.intercept("*add-on-sdk*", sdkStandIn("module"));
+    await page.goto(`file://${path.join(fixtures, "sdk-module.html")}`);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    assert.match(await page.eval("document.body.innerText"), /Ready in (light|dark)/);
+  } finally {
+    await page.close();
+  }
+  const plain = await launch({ width: 320, height: 800, scale: 1 });
+  try {
+    await plain.intercept("*add-on-sdk*", sdkStandIn("script"));
+    await plain.goto(`file://${path.join(fixtures, "sdk-script.html")}`);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    assert.match(await plain.eval("document.body.innerText"), /Ready by script/);
+  } finally {
+    await plain.close();
+  }
+  const files = [{ rel: "index.html", text: '<script src="https://new.express.adobe.com/static/add-on-sdk/sdk.js"></script>' }];
+  assert.equal(loadsSdkAsScript(files), true);
+  assert.equal(loadsSdkAsScript([{ rel: "index.html", text: '<script type="module" src="/static/add-on-sdk/sdk.js"></script>' }]), false);
+  assert.equal(loadsSdkAsScript([{ rel: "index.html", text: '<div id="root"></div>' }]), false);
+});
 
 test("the probe finds each class of bug on its page, and nothing on a good one", browser, async () => {
   const page = await launch({ width: 320, height: 800, scale: 1 });
@@ -250,6 +277,11 @@ test("a welcome tour is stepped through for free, and the panel behind it is wal
     const after = result.states.find((state) => state.label === "Settings");
     assert.equal(after.trail.filter((step) => step.tour).length, 3, "three tour steps, then the real click");
     assert.ok(after.trail.at(-1).tour === undefined, "the click on Settings costs depth");
+
+    // A recheck opens the screens it is given, in order, and explores nothing else.
+    const again = await walkPanel({ url, themes: ["light"], shotDir: fs.mkdtempSync(path.join(os.tmpdir(), "express-recheck-")), only: [{ label: after.label, trail: after.trail }] });
+    assert.deepEqual(again.states.map((state) => state.label), ["Settings"], "only the named screen is measured");
+    assert.equal(again.left, 0, "nothing was queued from it");
   } finally {
     server.close();
   }
