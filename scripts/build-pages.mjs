@@ -2,11 +2,10 @@
 /**
  * Builds the GitHub Pages output.
  *
- * The root is an empty "Not found" page. The project page and the install zip
+ * The root is an empty "Not found" page. The project page and its assets
  * are written only under PAGES_SHARE_TOKEN, and only while PAGES_SHARE_EXPIRES
  * is empty or still in the future. The token is never printed.
  */
-import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,9 +40,7 @@ if (page !== path.join(dist, token)) {
 }
 fs.mkdirSync(page, { recursive: true });
 fs.copyFileSync(path.join(root, "site", "page.html"), path.join(page, "index.html"));
-fs.copyFileSync(path.join(root, "site", "site.css"), path.join(page, "site.css"));
-
-const zip = path.join(page, "express-addon-review.zip");
-const archived = spawnSync("git", ["archive", "--format=zip", `--output=${zip}`, "HEAD"], { cwd: root, stdio: "inherit" });
-if (archived.status !== 0) process.exit(archived.status || 1);
+for (const asset of ["site.css", "site.js", "demo.webp"]) {
+  fs.copyFileSync(path.join(root, "site", asset), path.join(page, asset));
+}
 process.stdout.write("Published the preview under the share path.\n");

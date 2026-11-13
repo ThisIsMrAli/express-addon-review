@@ -1,28 +1,40 @@
-# Express Add-on Review
+# Express Add-on Reviewer
 
-The check you run on an Adobe Express add-on before you submit it. Point it at the add-on folder. It checks the source against Adobe’s current docs, walks the panel at 320px in light and dark, fixes the layout bugs it measures, and prepares the marketplace listing.
+**Send a stronger add-on to review.** Check your source, upload package, and panel before you submit. Review the findings and prepare your listing in one workflow.
 
-It does not open Adobe Express, it does not submit the add-on, and a finished review is not marketplace approval. Adobe’s sentences stay on Adobe’s pages. The refresh command downloads the docs, and a check is skipped when that download no longer contains the sentence it depends on.
+[![Demo capture showing findings and captured panel states side by side.](site/demo.webp)](https://drive.google.com/file/d/1JKUo__CFvtpCF7M2Kyugx8AeiJLEQply/view?usp=sharing)
 
-## Requirements
+[Watch the demo](https://drive.google.com/file/d/1JKUo__CFvtpCF7M2Kyugx8AeiJLEQply/view?usp=sharing) · [Install](#install) · [How it works](#how-it-works)
 
-- Node.js 18 or newer
-- Chrome, Edge, or Chromium on the same computer, for the panel walk and the listing screenshots. Set `CHROME_PATH` to choose one. Without a browser, the review says so and continues by hand
-- `pdftotext`, optional, for the brand PDF
+## How it works
 
-macOS, Windows, and Linux.
+1. **Scan the project.** Check the source and upload package against Adobe guidance and common review patterns.
+2. **Walk the panel.** Open reachable screens in light and dark at 320 px and capture what the browser measures.
+3. **Review and verify.** Work through the findings and rerun the checks after updates.
+4. **Prepare the listing.** Review draft copy and marketplace screenshots before saving them to the project.
+
+
+## What you get
+
+- **Review an existing add-on.** Start with the project folder and, when available, the ZIP you intend to upload.
+- **Work through a rejection.** Turn feedback from a marketplace review into tracked items for the next submission.
+- **See the evidence.** Follow progress and open panel captures from the local dashboard.
+
+The browser walk supports preflight checks. Marketplace submission and approval remain with Adobe and the publisher.
 
 ## Install
 
-From this folder:
+You’ll need Node.js 18 or newer and GitHub access to the private repository.
 
 ```bash
+git clone https://github.com/ThisIsMrAli/express-addon-review.git
+cd express-addon-review
 node install-agents.mjs --global
 ```
 
-That links the skill into the agent folders on this machine, including Claude, Cursor, Codex, Gemini, and Windsurf. Use `node install-agents.mjs` without `--global` to link it only inside this project.
+Open a new chat in **Codex**, **Claude Code**, or **Cursor** with your project open. The installer also links supported tools such as Gemini CLI and Windsurf. Keep the checkout on disk so the links continue to work. Omit `--global` to link skills inside the checkout only.
 
-If you were sent the preview address instead of the repository, download the project from that page. The repository itself is private.
+> Use express-addon-review to review the Adobe Express add-on in this folder before marketplace submission.
 
 ## Run a review
 
@@ -70,7 +82,7 @@ The source repository stays private. It does not appear on a public GitHub profi
 GitHub Pages has no signature check. A private repository hides the source. It does not hide a Pages site. The preview address is an unguessable path, with an optional expiry, which is as close as Pages can come to a presigned URL:
 
 - The site root says “Not found” and does not name the project.
-- The page and the install zip exist only under that path.
+- The page and its presentation assets exist only under that path.
 - Anyone with the address can open it until you rotate the path, or until the date passes and the next deploy removes it.
 - A daily deploy drops expired paths. `noindex` asks search engines not to list the site. That is not access control.
 

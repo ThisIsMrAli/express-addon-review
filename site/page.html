@@ -1,134 +1,62 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-product="review">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow, noarchive">
   <meta name="referrer" content="no-referrer">
-  <meta name="description" content="Express Add-on Review checks an Adobe Express add-on before you submit it: the source, the panel, and the listing.">
-  <title>Express Add-on Review</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" referrerpolicy="no-referrer" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+  <meta name="description" content="Check your source, upload package, and panel before you submit. Review the findings and prepare your listing in one workflow.">
+  <title>Express Add-on Reviewer</title>
   <link rel="stylesheet" href="site.css">
+  <script src="site.js" defer></script>
 </head>
 <body>
   <a class="skip" href="#content">Skip to content</a>
-  <div class="rule"></div>
   <div class="wrap">
-    <header class="site">
-      <a class="brand" href="#content">
-        <span class="mark" aria-hidden="true">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.2 6.2 11.5 13 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="square"/></svg>
-        </span>
-        <strong>Express Add-on Review</strong>
-      </a>
-      <p class="pill">Unlisted preview</p>
+    <header class="top">
+      <a class="brand" href="#content"><span class="mark" aria-hidden="true">✓</span>Express Add-on Reviewer</a>
+      <nav aria-label="Page"><a href="#workflow">Workflow</a><a href="#install">Install</a><a href="https://github.com/ThisIsMrAli/express-addon-review">GitHub</a></nav>
     </header>
-
     <main id="content">
       <section class="hero">
-        <p class="eyebrow">Before you submit</p>
-        <h1>Check the add-on before you submit it.</h1>
-        <p class="lede">A review skill for one add-on folder. It reads the source against Adobe’s current docs, walks the panel at 320px in light and dark, and prepares the listing. It does not open Adobe Express, and it does not submit anything.</p>
-        <div class="actions">
-          <a class="btn" href="express-addon-review.zip">Download the project</a>
-          <a class="btn ghost" href="#install">Install steps</a>
+        <div>
+          <p class="kicker">Adobe Express pre-submission review</p>
+          <h1>Send a stronger add-on to review.</h1>
+          <p class="lede">Check your source, upload package, and panel before you submit. Review the findings and prepare your listing in one workflow.</p>
+          <div class="actions"><a class="button primary" href="https://drive.google.com/file/d/1JKUo__CFvtpCF7M2Kyugx8AeiJLEQply/view?usp=sharing">Watch the demo</a><a class="button" href="#install">Install the skill</a></div>
         </div>
-        <ul class="facts">
-          <li><strong>320px</strong> panel, light and dark</li>
-          <li><strong>Node 18</strong> or newer</li>
-          <li><strong>1360×800</strong> listing screenshots</li>
-        </ul>
+        <figure class="demo">
+          <a href="https://drive.google.com/file/d/1JKUo__CFvtpCF7M2Kyugx8AeiJLEQply/view?usp=sharing" aria-label="Watch the Express Add-on Reviewer demo"><img src="demo.webp" alt="Demo capture showing findings and captured panel states side by side." width="1120" height="565"><span class="play" aria-hidden="true">▶ Play demo</span></a>
+          <figcaption>Demo capture showing findings and captured panel states side by side.</figcaption>
+        </figure>
       </section>
-
-      <section aria-labelledby="does">
-        <h2 id="does">What it does</h2>
-        <div class="grid">
-          <article class="card">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 4h8l4 4v12H6V4Z" stroke="currentColor" stroke-width="1.5"/><path d="M14 4v4h4M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.5"/></svg>
-            <h3>Scan the source</h3>
-            <p>Checks are tied to a sentence in Adobe’s current docs. When that sentence is gone, the check is skipped. A few more come from real marketplace rejection letters. Comments are ignored.</p>
-          </article>
-          <article class="card">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="7" y="3" width="10" height="18" stroke="currentColor" stroke-width="1.5"/><path d="M9 7h6M9 11h6" stroke="currentColor" stroke-width="1.5"/></svg>
-            <h3>Walk the panel</h3>
-            <p>Headless Chrome opens the panel at 320px, in light and dark, and presses the screens it can reach. A close button at the bottom of a dialog, a covered control, clipped text, and a dialog with no way out are fixed and measured again.</p>
-          </article>
-          <article class="card">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="14" stroke="currentColor" stroke-width="1.5"/><path d="M3 9h18" stroke="currentColor" stroke-width="1.5"/></svg>
-            <h3>Prepare the listing</h3>
-            <p>Name, summary, description, and keywords are drafted from the manifest and the panel. Screenshots use one locked 1360×800 template and only words that are already in the add-on. You approve them before anything is written.</p>
-          </article>
-        </div>
+      <section id="workflow" class="section">
+        <h2>How it works</h2>
+        <ol class="steps"><li><span class="step-number">01</span><h3>Scan the project</h3><p>Check the source and upload package against Adobe guidance and common review patterns.</p></li><li><span class="step-number">02</span><h3>Walk the panel</h3><p>Open reachable screens in light and dark at 320 px and capture what the browser measures.</p></li><li><span class="step-number">03</span><h3>Review and verify</h3><p>Work through the findings and rerun the checks after updates.</p></li><li><span class="step-number">04</span><h3>Prepare the listing</h3><p>Review draft copy and marketplace screenshots before saving them to the project.</p></li></ol>
+        <div class="features"><article><h3>Review an existing add-on</h3><p>Start with the project folder and, when available, the ZIP you intend to upload.</p></article><article><h3>Work through a rejection</h3><p>Turn feedback from a marketplace review into tracked items for the next submission.</p></article><article><h3>See the evidence</h3><p>Follow progress and open panel captures from the local dashboard.</p></article></div>
       </section>
-
-      <section aria-labelledby="goes">
-        <h2 id="goes">How a review goes</h2>
-        <ol class="steps">
-          <li><span>01</span><p>The agent scans the add-on and writes a report outside the project, in <code>~/.express-addon-review/</code>.</p></li>
-          <li><span>02</span><p>You choose once where to follow along: a local dashboard in Chrome, or the chat.</p></li>
-          <li><span>03</span><p>It walks the panel. Measured bugs are fixed without a question. Warnings wait for one “fix everything” choice.</p></li>
-          <li><span>04</span><p>The remaining choices are a test license when a screen is locked, an optional polish pass, design, and the listing. Never one question per finding.</p></li>
-          <li><span>05</span><p>It keeps going until the review is finished. If a pasted rejection letter started the review, it ends with notes for the resubmission.</p></li>
-        </ol>
-      </section>
-
-      <section class="install" id="install" aria-labelledby="install-title">
-        <h2 id="install-title">Install</h2>
-        <p class="note">The download is this project. It does not require access to the repository. Node.js 18 or newer is required. The panel walk and the listing screenshots need Chrome, Edge, or Chromium on the same computer. <code>pdftotext</code> is used for the brand PDF when it is installed.</p>
-        <div class="terminal">
-          <header>
-            <span>Terminal</span>
-            <button class="btn" type="button" id="copy">Copy</button>
-          </header>
-          <pre><code id="commands">Loading the install commands…</code></pre>
-        </div>
-        <p class="note" id="copied" role="status"></p>
-        <p class="note">Then open the add-on in an agent that loads the skill and ask it to review that folder. The same installer links the skill for Claude, Cursor, Codex, Gemini, Windsurf, and the other agents the installer already knows.</p>
-      </section>
-
-      <section aria-labelledby="limits">
-        <h2 id="limits">What it leaves to you</h2>
-        <div class="split">
+      <section id="install" class="section">
+        <h2>Install and try it</h2>
+        <div class="install-grid">
           <div>
-            <ul class="plain">
-              <li>Other browsers, and one pass on a slow network. Reviewers try Chrome, Safari, Edge, and Firefox.</li>
-              <li>The publisher website, the publisher form, and test credentials when the add-on logs in or has a paid feature.</li>
-              <li>Screens behind a login the walk cannot reach, and whether the wording actually makes sense.</li>
-            </ul>
+            <p>Requires Node.js 18 or newer and GitHub access to the repository. Sign in to GitHub with an account that has access before cloning.</p>
+            <div class="terminal">
+              <div class="terminal-head"><strong>Run in your terminal</strong><button type="button" data-copy="install-command" aria-live="polite" hidden>Copy commands</button></div>
+              <pre><code id="install-command">git clone https://github.com/ThisIsMrAli/express-addon-review.git
+cd express-addon-review
+node install-agents.mjs --global</code></pre>
+            </div>
+            <p class="prompt"><strong>Try this prompt</strong><br>Use express-addon-review to review the Adobe Express add-on in this folder before marketplace submission.</p>
           </div>
-          <div class="callout">
-            <p class="note">A finished review is not marketplace approval. Adobe’s reviewers never see the local dashboard. The dashboard stays on your computer.</p>
+          <div>
+            <h3>Open your coding tool</h3>
+            <details><summary>Codex</summary><p>Open your project in Codex after running the installer. Ask for <code>express-addon-review</code> by name in a new chat.</p></details><details><summary>Claude Code</summary><p>Open your project in Claude Code after running the installer. Ask for <code>express-addon-review</code> by name in a new chat.</p></details><details><summary>Cursor</summary><p>Open your project in Cursor after running the installer. Ask for <code>express-addon-review</code> by name in a new chat.</p></details>
+            <details><summary>Other supported tools</summary><p>The installer also links the skill into supported locations for tools such as Gemini CLI and Windsurf. Keep the checkout on disk so the links continue to work.</p></details>
           </div>
         </div>
       </section>
     </main>
-
-    <footer class="site">
-      <p>MIT License</p>
-      <p>Unlisted preview. Please don’t publish this address.</p>
-    </footer>
+    <footer class="foot"><p>The browser walk supports preflight checks. Marketplace submission and approval remain with Adobe and the publisher.</p><a href="https://github.com/ThisIsMrAli/express-addon-review">Read the repository guide</a></footer>
   </div>
-  <script>
-    const zip = new URL("express-addon-review.zip", location.href).href;
-    const commands = [
-      "curl -fsSL -o express-addon-review.zip " + JSON.stringify(zip),
-      "mkdir express-addon-review",
-      "tar -xf express-addon-review.zip -C express-addon-review",
-      "cd express-addon-review",
-      "node install-agents.mjs --global"
-    ].join("\n");
-    document.getElementById("commands").textContent = commands;
-    document.getElementById("copy").addEventListener("click", async () => {
-      const status = document.getElementById("copied");
-      try {
-        await navigator.clipboard.writeText(commands);
-        status.textContent = "Copied.";
-      } catch {
-        status.textContent = "Select the commands and copy them.";
-      }
-    });
-  </script>
 </body>
 </html>
