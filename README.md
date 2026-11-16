@@ -77,7 +77,7 @@ The local dashboard shows the current step, a progress bar, the findings, and th
 
 ## Project site
 
-[Visit the project site](https://thisismrali.github.io/express-addon-review/) for the demo, workflow, and installation guide. The Pages workflow publishes the site from `main`.
+[Visit the project site](https://thisismrali.github.io/express-addon-review/) for the demo, workflow, and installation guide. GitHub Pages serves the `gh-pages` branch. Run `node scripts/build-pages.mjs` to build the site into `site-dist/` before updating the published branch.
 
 ## License
 
