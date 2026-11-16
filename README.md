@@ -24,7 +24,7 @@ The browser walk supports preflight checks. Marketplace submission and approval 
 
 ## Install
 
-You’ll need Node.js 18 or newer and GitHub access to the private repository.
+You’ll need Node.js 18 or newer and Git.
 
 ```bash
 git clone https://github.com/ThisIsMrAli/express-addon-review.git
@@ -75,27 +75,9 @@ The local dashboard shows the current step, a progress bar, the findings, and th
 - Invent listing text, publisher details, or test credentials
 - Ask once per finding
 
-## Share a private preview
+## Project site
 
-The source repository stays private. It does not appear on a public GitHub profile, and nobody can clone it without being given access.
-
-GitHub Pages has no signature check. A private repository hides the source. It does not hide a Pages site. The preview address is an unguessable path, with an optional expiry, which is as close as Pages can come to a presigned URL:
-
-- The site root says “Not found” and does not name the project.
-- The page and its presentation assets exist only under that path.
-- Anyone with the address can open it until you rotate the path, or until the date passes and the next deploy removes it.
-- A daily deploy drops expired paths. `noindex` asks search engines not to list the site. That is not access control.
-
-Do not put secrets on the page, and do not post the address in public. Publishing Pages from a private repository needs GitHub Pro, Team, or Enterprise. This project is not published from a public repository.
-
-```bash
-node scripts/share-link.mjs                 # print the address and store it in Actions secrets
-node scripts/share-link.mjs --days 30       # the same, and remove the path 30 days later
-node scripts/share-link.mjs --rotate        # invalidate the current address
-node scripts/share-link.mjs --publish       # also start a deploy
-```
-
-The address is written to `.share/link.json` on this computer and to Actions secrets. `.share/` is not committed. The command refuses to continue when the repository is not private.
+[Visit the project site](https://thisismrali.github.io/express-addon-review/) for the demo, workflow, and installation guide. The Pages workflow publishes the site from `main`.
 
 ## License
 
